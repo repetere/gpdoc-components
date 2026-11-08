@@ -9,3 +9,7 @@ Open-source skills and components for GPDoc.
 ## Checks
 
 Run `python -m unittest discover -s tests` to validate the included example and reference links.
+
+## License
+
+[MIT](LICENSE), copyright (c) 2026 Repetere. The standalone skill includes its own copy of the license.
