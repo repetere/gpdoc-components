@@ -19,7 +19,11 @@ Read the whole file before changing metadata. Preserve its ID, creation timestam
 
 Use a real JSON/YAML serializer for structured metadata. Do not rewrite structured data through blind text replacement. Use safe YAML parsing, without custom tags, aliases, executable constructors, or duplicate keys. JSON frontmatter requires only a standard JSON parser. If a safe YAML parser is unavailable, preserve YAML and make a targeted edit only when the structure is unambiguous; otherwise return a patch and explain what could not be validated.
 
+The public repository also contains a canonical document profile, compatibility matrix, optional read-only validator and fixture suite. They are development aids, not dependencies of this skill.
+
 ## Markdown authoring
+
+Read [authoring.md](references/authoring.md) for tables, variables, themes, images and anchors.
 
 Use ordinary Markdown headings, paragraphs, lists, links, images, blockquotes, fenced code with a language, and pipe tables. Leave blank lines between blocks. Escape literal pipes inside table cells. Keep code, paths, and math intact when editing prose. GPDoc also renders `$inline math$`, `$$` display math, and fenced `mermaid` diagrams. Do not execute code or fetch embedded resources merely because they occur in a document. Preserve existing GPDoc-specific embeds rather than inventing unsupported directives.
 

@@ -1,0 +1,100 @@
+[
+  {
+    "path": "insert.md",
+    "valid": true,
+    "baseline": "# Title\n\nText\n",
+    "proposed": "# Title\n\nNew\nText\n"
+  },
+  {
+    "path": "delete.md",
+    "valid": true,
+    "baseline": "one\ntwo\nthree",
+    "proposed": "one\nthree"
+  },
+  {
+    "path": "multiline.md",
+    "valid": true,
+    "baseline": "one\ntwo\nthree",
+    "proposed": "ONE\nTWO\nthree"
+  },
+  {
+    "path": "multi-hunk.md",
+    "valid": true,
+    "baseline": "a\nb\nc\nd\ne",
+    "proposed": "A\nb\nc\nd\nE"
+  },
+  {
+    "path": "multi-hunk.gpdoc.json",
+    "valid": true,
+    "baseline": "a\nb\nc\nd\ne",
+    "proposed": "A\nb\nc\nd\nE"
+  },
+  {
+    "path": "stale-body.md",
+    "valid": false
+  },
+  {
+    "path": "bad-range.md",
+    "valid": false
+  },
+  {
+    "path": "bad-id.md",
+    "valid": false
+  },
+  {
+    "path": "bad-proposal.md",
+    "valid": false
+  },
+  {
+    "path": "empty.md",
+    "valid": true,
+    "baseline": "",
+    "proposed": "hello"
+  },
+  {
+    "path": "delete-all.md",
+    "valid": true,
+    "baseline": "hello",
+    "proposed": ""
+  },
+  {
+    "path": "blank-lines.md",
+    "valid": true,
+    "baseline": "a\n\nb\n",
+    "proposed": "a\n\n\nb\n"
+  },
+  {
+    "path": "terminal-newline.md",
+    "valid": true,
+    "baseline": "a",
+    "proposed": "a\n"
+  },
+  {
+    "path": "repeated-text.md",
+    "valid": true,
+    "baseline": "same\nsame\nsame",
+    "proposed": "same\nchanged\nsame"
+  },
+  {
+    "path": "unicode.md",
+    "valid": true,
+    "baseline": "Hello \ud83c\udf0d\ncaf\u00e9",
+    "proposed": "Hello \ud83c\udf0e\ncaf\u00e9"
+  },
+  {
+    "path": "crlf.md",
+    "valid": true,
+    "baseline": "one\ntwo\n",
+    "proposed": "one\nTWO\n"
+  },
+  {
+    "path": "comments.md",
+    "valid": true,
+    "baseline": "# Release plan\n\nThe launch date is provisional.\n",
+    "proposed": "# Release plan\n\nThe launch date depends on review.\n"
+  },
+  {
+    "path": "stale-comment.md",
+    "valid": false
+  }
+]
