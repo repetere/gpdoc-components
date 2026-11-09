@@ -1,0 +1,78 @@
+---
+{
+  "id": "fixture-multi-hunk",
+  "filename": "multi-hunk",
+  "filetype": "document",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "meta": {
+    "suggestions": {
+      "enabled": true,
+      "baselineContent": "a\nb\nc\nd\ne",
+      "proposedContent": "A\nb\nc\nd\nE",
+      "items": {
+        "multi-hunk-0": {
+          "id": "multi-hunk-0",
+          "oldStart": -1,
+          "oldEnd": 1,
+          "newStart": 0,
+          "newEnd": 1,
+          "oldLines": [
+            "a"
+          ],
+          "newLines": [
+            "A"
+          ],
+          "oldLineNumber": 1,
+          "lineNumber": 1,
+          "oldLineCount": 1,
+          "newLineCount": 1,
+          "oldContent": "a",
+          "newContent": "A",
+          "changeType": "modified",
+          "applied": false,
+          "suggestedAt": "2026-01-01T00:00:00.000Z",
+          "suggestedBy": {
+            "id": "fixture-author-0",
+            "name": "Fixture author"
+          }
+        },
+        "multi-hunk-2": {
+          "id": "multi-hunk-2",
+          "oldStart": 4,
+          "oldEnd": 5,
+          "newStart": 4,
+          "newEnd": 5,
+          "oldLines": [
+            "e"
+          ],
+          "newLines": [
+            "E"
+          ],
+          "oldLineNumber": 5,
+          "lineNumber": 5,
+          "oldLineCount": 1,
+          "newLineCount": 1,
+          "oldContent": "e",
+          "newContent": "E",
+          "changeType": "modified",
+          "applied": false,
+          "suggestedAt": "2026-01-01T00:00:00.000Z",
+          "suggestedBy": {
+            "id": "fixture-author-0",
+            "name": "Fixture author"
+          }
+        }
+      }
+    },
+    "extensionExample": {
+      "preserve": true
+    }
+  }
+}
+---
+a
+b
+c
+d
+e

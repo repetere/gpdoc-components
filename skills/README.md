@@ -2,7 +2,7 @@
 
 ## GPDoc Markdown
 
-[gpdoc-markdown](gpdoc-markdown/SKILL.md) teaches a coding assistant to create and edit GPDoc Markdown, add comment threads, and record pending suggestions directly in files. It includes format references and a complete review example.
+[gpdoc-markdown](gpdoc-markdown/SKILL.md) teaches a coding assistant to create and edit GPDoc Markdown, add comment threads, and record pending suggestions directly in files. It includes format references and a complete review example. It also covers JSON slide arrays, notebook cells and scripts while preserving their web/desktop dialects; structured-format review is delivered separately rather than inventing document review metadata.
 
 No GPDoc app, extension, CLI, MCP server, login, or network connection is needed to author files. Your assistant needs ordinary file read/write tools. A standard JSON parser is sufficient for JSON frontmatter; safe YAML parsing is useful for YAML files. Rendering and cloud synchronization are separate capabilities.
 
@@ -33,6 +33,10 @@ Copy the complete `skills/gpdoc-markdown` folder into your agent's supported ski
 - "Use gpdoc-markdown to propose a clearer introduction in brief.md, leaving accepted text unchanged."
 - "Add a GPDoc comment asking for evidence on the launch-date paragraph."
 - "Accept only suggestion ID X and preserve the other pending suggestions."
+
+- "Change only slide 2 in deck.gpdoc.json, preserving the slide array."
+- "Edit the introduction cell in notebook.gpdoc.json without running any cells."
+- "Change the greeting in script.gpdoc.json without executing it."
 
 ### Compatibility and validation
 

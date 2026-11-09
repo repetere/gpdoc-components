@@ -1,0 +1,20 @@
+External review only, not pending suggestions in a GPDoc client.
+
+Source: slides.gpdoc.json
+Target: slide 2 (content.slides[1]), paragraph after # Repeated.
+Before: Revenue is 10 units.
+Proposed after: Revenue is 15 units.
+Leave all other slide content, including the fenced JavaScript example, unchanged.
+The source file has not been edited. This proposal is independent of the separate direct-edit copy containing 12 units.
+
+Unsupported object-slide review:
+Source: slides-objects-unsupported.gpdoc.json
+content.slides contains objects, not the native Markdown-string array covered by this skill. Preserve object IDs title and keep, layout coordinates, custom fields, order, and the complete envelope. No mutation was made. Do not flatten these objects into strings or claim native compatibility. Before an actual edit, obtain the intended producer/schema; a separate proposed patch is also an option when a specific requested change can be described safely. No specific object-slide change was requested here.
+
+Creation dialect: All three new files use the skill's web JSON examples. No cross-client import or rendering verification is claimed.
+
+Instruction clarification: The initial 'nothing else' scope was clarified as content-only. slides-edited.gpdoc.json now updates updated_at as prescribed by the skill, as do the notebook/script copies.
+
+Additional creation: markdown-slides.md uses namespaced YAML GPDoc metadata with filetype slides, a fresh ID/current timestamps, and the default page-break delimiter. Its body remains Markdown and is distinct from the new JSON deck's content.slides array.
+
+Verification: Parsed every output JSON and compared copied structures to originals, allowing only the requested content field and updated_at. Preserved IDs, metadata, dialects, cell outputs, source array/scalar shapes, slide count/order/empty slide, and unrelated fields. All original fixture files remain byte-identical. No notebook/script code ran; no embedded resource was fetched. Structural checks are not visual/client compatibility checks.

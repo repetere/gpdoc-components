@@ -1,0 +1,47 @@
+{
+  "id": "synthetic-notebook-desktop",
+  "filename": "notebook-desktop",
+  "filetype": "notebook",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "meta": {
+    "custom": {
+      "keep": [
+        "alpha",
+        1
+      ]
+    },
+    "theme": "plain"
+  },
+  "content": {
+    "cells": [
+      {
+        "id": "intro",
+        "cell_type": "markdown",
+        "source": [
+          "# Analysis\n",
+          "\n",
+          "Draft summary."
+        ],
+        "metadata": {}
+      },
+      {
+        "id": "calc",
+        "cell_type": "code",
+        "source": "print(2 + 2)\n",
+        "language": "python",
+        "metadata": {
+          "keep": true
+        },
+        "outputs": [
+          {
+            "text": "4"
+          }
+        ]
+      }
+    ]
+  },
+  "extension": {
+    "retain": true
+  }
+}

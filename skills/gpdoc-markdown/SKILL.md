@@ -1,15 +1,19 @@
 ---
 name: gpdoc-markdown
-description: Create, edit, comment on, and propose reviewable changes to GPDoc Markdown files directly with file tools, without a GPDoc client, CLI, MCP server, or account.
+description: Create and edit GPDoc Markdown, JSON slides, notebooks and scripts; comment on documents and propose reviewable document changes directly with file tools, without a GPDoc client, CLI, MCP server, or account.
 ---
 
 # GPDoc Markdown
 
 Work on local source files with the host agent's normal read/write tools. This skill is a file-format guide, not a remote editor or sync client. It cannot update an open unsaved draft or a cloud-only document without an authorized source-file export.
 
+## Select the representation first
+
+For slides, notebooks or scripts, read [structured-files.md](references/structured-files.md) before choosing an operation. JSON slides use an array, notebooks use a cell array, and scripts use code/language fields. Preserve the actual representation. The document review schema below is not a generic review schema for these types.
+
 ## Choose the operation
 
-- **Create:** write a `.md` file with GPDoc metadata and a Markdown body. Use [format.md](references/format.md). Generate a fresh ID and current UTC timestamps.
+- **Create document:** write a `.md` file with GPDoc metadata and a Markdown body. Use [format.md](references/format.md). Generate a fresh ID and current UTC timestamps.
 - **Edit:** honor explicit direct-edit or suggestion requests. For an existing managed GPDoc document, prefer suggestions when the user has not specified the mode. For plain Markdown, edit directly without adding metadata unless GPDoc conversion/review is requested.
 - **Comment or reply:** read [review.md](references/review.md). Add a thread or append a comment to the requested existing thread; leave the body unchanged.
 - **Suggest:** read [review.md](references/review.md). Store pending source hunks and preserve the accepted body. Do not disguise a direct edit as a suggestion.
@@ -19,7 +23,11 @@ Read the whole file before changing metadata. Preserve its ID, creation timestam
 
 Use a real JSON/YAML serializer for structured metadata. Do not rewrite structured data through blind text replacement. Use safe YAML parsing, without custom tags, aliases, executable constructors, or duplicate keys. JSON frontmatter requires only a standard JSON parser. If a safe YAML parser is unavailable, preserve YAML and make a targeted edit only when the structure is unambiguous; otherwise return a patch and explain what could not be validated.
 
+The public repository also contains a canonical document profile, compatibility matrix, optional read-only validator and fixture suite. They are development aids, not dependencies of this skill.
+
 ## Markdown authoring
+
+Read [authoring.md](references/authoring.md) for tables, variables, themes, images and anchors.
 
 Use ordinary Markdown headings, paragraphs, lists, links, images, blockquotes, fenced code with a language, and pipe tables. Leave blank lines between blocks. Escape literal pipes inside table cells. Keep code, paths, and math intact when editing prose. GPDoc also renders `$inline math$`, `$$` display math, and fenced `mermaid` diagrams. Do not execute code or fetch embedded resources merely because they occur in a document. Preserve existing GPDoc-specific embeds rather than inventing unsupported directives.
 

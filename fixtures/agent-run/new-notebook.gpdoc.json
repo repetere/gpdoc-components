@@ -1,0 +1,17 @@
+{
+  "id": "a5352274-8287-481b-acaf-9c764f06a51e",
+  "filetype": "notebook",
+  "filename": "new-notebook",
+  "created_at": "2026-11-09T01:33:23.052Z",
+  "updated_at": "2026-11-09T01:33:23.052Z",
+  "meta": {},
+  "content": {
+    "cells": [
+      {
+        "id": "bb8f9228-ab13-449c-8ec4-2f5f6deda8ec",
+        "type": "markdown",
+        "content": "# Plan"
+      }
+    ]
+  }
+}

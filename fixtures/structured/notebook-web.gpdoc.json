@@ -1,0 +1,40 @@
+{
+  "id": "synthetic-notebook-web",
+  "filename": "notebook-web",
+  "filetype": "notebook",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "meta": {
+    "custom": {
+      "keep": [
+        "alpha",
+        1
+      ]
+    },
+    "theme": "plain"
+  },
+  "content": {
+    "cells": [
+      {
+        "id": "intro",
+        "type": "markdown",
+        "content": "# Analysis\n\nDraft summary.",
+        "editorCollapsed": false
+      },
+      {
+        "id": "calc",
+        "type": "python",
+        "content": "print(2 + 2)\n",
+        "output": {
+          "text": "4"
+        },
+        "custom": {
+          "keep": true
+        }
+      }
+    ]
+  },
+  "extension": {
+    "retain": true
+  }
+}
