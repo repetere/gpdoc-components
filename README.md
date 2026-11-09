@@ -6,6 +6,10 @@ Open-source skills and components for GPDoc.
 
 - [GPDoc Markdown](skills/README.md): create and edit GPDoc Markdown, comments, and pending suggestions with ordinary file tools. No GPDoc client or additional service is required.
 
+## Install the skill
+
+Choose [Claude Code, Codex, or manual installation](skills/README.md#quickstart-choose-your-agent), then create your first file. The [website quickstart](https://repetere.github.io/gpdoc-components/#quickstart) includes copyable commands and the full skill instructions.
+
 ## Standalone document profile
 
 - [Canonical document profile](spec/document-v1.md)
