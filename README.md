@@ -2,6 +2,8 @@
 
 Open-source skills and components for GPDoc.
 
+[Website and documentation](https://repetere.github.io/gpdoc-components/)
+
 ## Skills
 
 - [GPDoc Markdown](skills/README.md): create and edit GPDoc Markdown, comments, and pending suggestions with ordinary file tools. No GPDoc client or additional service is required.
