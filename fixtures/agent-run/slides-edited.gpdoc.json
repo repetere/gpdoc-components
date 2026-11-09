@@ -1,0 +1,30 @@
+{
+  "id": "synthetic-slides",
+  "filename": "slides",
+  "filetype": "slides",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-11-09T01:34:01.233Z",
+  "meta": {
+    "custom": {
+      "keep": [
+        "alpha",
+        1
+      ]
+    },
+    "theme": "plain"
+  },
+  "content": {
+    "slides": [
+      "# Repeated\n\nWelcome.",
+      "# Repeated\n\nRevenue is 12 units.\n\n```js\nconst example = \"---\";\n```",
+      "",
+      "# Closing\n\n![Logo](https://example.invalid/logo.png)"
+    ],
+    "custom": [
+      "keep"
+    ]
+  },
+  "extension": {
+    "retain": true
+  }
+}

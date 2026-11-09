@@ -1,0 +1,39 @@
+{
+  "id": "synthetic-slides-objects-unsupported",
+  "filename": "slides-objects-unsupported",
+  "filetype": "slides",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "meta": {
+    "custom": {
+      "keep": [
+        "alpha",
+        1
+      ]
+    },
+    "theme": "plain"
+  },
+  "content": {
+    "slides": [
+      {
+        "id": "title",
+        "content": "# Opening",
+        "layout": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      {
+        "id": "keep",
+        "content": "# Keep",
+        "custom": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "extension": {
+    "retain": true
+  }
+}

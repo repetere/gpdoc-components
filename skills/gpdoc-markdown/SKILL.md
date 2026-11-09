@@ -1,15 +1,19 @@
 ---
 name: gpdoc-markdown
-description: Create, edit, comment on, and propose reviewable changes to GPDoc Markdown files directly with file tools, without a GPDoc client, CLI, MCP server, or account.
+description: Create and edit GPDoc Markdown, JSON slides, notebooks and scripts; comment on documents and propose reviewable document changes directly with file tools, without a GPDoc client, CLI, MCP server, or account.
 ---
 
 # GPDoc Markdown
 
 Work on local source files with the host agent's normal read/write tools. This skill is a file-format guide, not a remote editor or sync client. It cannot update an open unsaved draft or a cloud-only document without an authorized source-file export.
 
+## Select the representation first
+
+For slides, notebooks or scripts, read [structured-files.md](references/structured-files.md) before choosing an operation. JSON slides use an array, notebooks use a cell array, and scripts use code/language fields. Preserve the actual representation. The document review schema below is not a generic review schema for these types.
+
 ## Choose the operation
 
-- **Create:** write a `.md` file with GPDoc metadata and a Markdown body. Use [format.md](references/format.md). Generate a fresh ID and current UTC timestamps.
+- **Create document:** write a `.md` file with GPDoc metadata and a Markdown body. Use [format.md](references/format.md). Generate a fresh ID and current UTC timestamps.
 - **Edit:** honor explicit direct-edit or suggestion requests. For an existing managed GPDoc document, prefer suggestions when the user has not specified the mode. For plain Markdown, edit directly without adding metadata unless GPDoc conversion/review is requested.
 - **Comment or reply:** read [review.md](references/review.md). Add a thread or append a comment to the requested existing thread; leave the body unchanged.
 - **Suggest:** read [review.md](references/review.md). Store pending source hunks and preserve the accepted body. Do not disguise a direct edit as a suggestion.

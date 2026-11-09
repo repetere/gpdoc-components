@@ -21,3 +21,9 @@ Visual QA must additionally cover table editing, code/math/diagram preservation,
 The adapted document source-review engine and shared client review adapter passed 104 focused tests, including 32 accept/reject expectations over the initial 16 interoperability fixtures. The JSON envelope case was explicitly adapted into Markdown before testing the review adapter; this does not certify a native JSON-envelope client importer. CRLF transport, independently authored repeated-text/blank-line hunk boundaries, legacy review dispatch and surviving suggestion identities were covered.
 
 This is development-library evidence, not a released-build or browser/desktop visual certification. The two subsequently added comment fixtures (`comments.md`, `stale-comment.md`) are validated by the public validator; comment reanchoring and rendering are not included in the 32 review-adapter cases. The standalone public checks also pass with Python site packages disabled; only the optional YAML test is skipped in that mode.
+
+## Structured-format skill exercise (2026-11-09)
+
+The standalone skill now documents `content.slides` string arrays, web notebook `type`/`content` cells, desktop `cell_type`/`source` cells, and script `code` versus `script` source keys. A separate agent actually performed targeted edits and creations on synthetic files using the skill alone, plus external review without source mutation. Saved outputs and independently checked preservation assertions are described in [agent-exercises.md](../tests/agent-exercises.md).
+
+This does not certify native slide/notebook/script review metadata, structured slide objects, web/desktop interchange, client save/reopen, code execution or visual rendering. In particular, notebook and script dialect differences must not be silently normalized. The new read-only validator reports bounded shape validity or unsupported inputs; it never repairs or writes files.

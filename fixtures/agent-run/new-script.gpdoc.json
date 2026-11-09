@@ -1,0 +1,12 @@
+{
+  "id": "9186fab5-8037-4d3c-8236-f6131d0d12d6",
+  "filetype": "script",
+  "filename": "new-script",
+  "created_at": "2026-11-09T01:33:23.052Z",
+  "updated_at": "2026-11-09T01:33:23.052Z",
+  "meta": {},
+  "content": {
+    "code": "print('Hello')\n",
+    "language": "python"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "synthetic-script-web",
+  "filename": "script-web",
+  "filetype": "script",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-11-09T01:33:23.052Z",
+  "meta": {
+    "custom": {
+      "keep": [
+        "alpha",
+        1
+      ]
+    },
+    "theme": "plain"
+  },
+  "content": {
+    "code": "def greet(name):\n    return \"Welcome, \" + name\n",
+    "language": "python",
+    "runtime": {
+      "keep": true
+    }
+  },
+  "extension": {
+    "retain": true
+  }
+}
