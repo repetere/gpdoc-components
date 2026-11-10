@@ -24,5 +24,5 @@ jobs:
         env:
           CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-config
         run: |
-          "$RUNNER_TEMP/claude-validator/node_modules/.bin/claude" plugin validate --strict .claude-plugin/plugin.json
+          "$RUNNER_TEMP/claude-validator/node_modules/.bin/claude" plugin validate --strict plugins/gpdoc-markdown
           "$RUNNER_TEMP/claude-validator/node_modules/.bin/claude" plugin validate --strict .claude-plugin/marketplace.json

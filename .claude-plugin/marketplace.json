@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "gpdoc-markdown",
-      "source": "./",
+      "source": "./plugins/gpdoc-markdown",
       "description": "Create and review GPDoc Markdown and structured files without a GPDoc client or account.",
       "category": "productivity",
       "tags": ["gpdoc", "markdown", "documents", "review"],

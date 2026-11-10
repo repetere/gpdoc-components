@@ -50,7 +50,9 @@ See the [actual agent exercise and limits](tests/agent-exercises.md), including 
 
 Run `python -m unittest discover -s tests` to validate the examples, fixture expectations, review invariants and reference links. Run `python tools/validate_gpdoc.py path/to/document.md` to check a document. JSON needs only Python 3.10+; YAML validation optionally uses PyYAML.
 
-For a plugin release, run `claude plugin validate --strict .claude-plugin/plugin.json` and `claude plugin validate --strict .claude-plugin/marketplace.json`, then install from the marketplace and check `claude plugin details gpdoc-markdown`. Increment the version in `.claude-plugin/plugin.json` for each release so installed copies can update.
+The distributable plugin is in [`plugins/gpdoc-markdown`](plugins/gpdoc-markdown). It contains only the skill, text documentation, manifests, license, privacy disclosure, and brand icon. Repository validators, tests, and website code are development resources, not part of the installed plugin.
+
+For a plugin release, increment the version in `.claude-plugin/plugin.json`, run `python tools/build_claude_plugin.py --write`, then run the tests. Run `claude plugin validate --strict plugins/gpdoc-markdown` and `claude plugin validate --strict .claude-plugin/marketplace.json`, then install from the marketplace and check `claude plugin details gpdoc-markdown`. The builder checks generated files without changing them when called without `--write`.
 
 ## License
 
