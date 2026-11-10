@@ -30,13 +30,13 @@ class InstallDocsTests(unittest.TestCase):
             self.assertIn(anchor, page.ids)
 
     def test_readme_links(self):
-        for file in [ROOT/'README.md', ROOT/'skills/README.md']:
+        for file in [ROOT/'README.md', ROOT/'INSTALL.md', ROOT/'skills/README.md']:
             for href in re.findall(r'\]\(([^)]+)\)', file.read_text()):
                 if '://' not in href and not href.startswith('#'):
                     self.assertTrue((file.parent/href.split('#')[0]).exists(), href)
 
     def test_documented_copy_commands_and_existing_install(self):
-        doc = (ROOT/'skills/README.md').read_text()
+        doc = (ROOT/'INSTALL.md').read_text()
         blocks = re.findall(r'```sh\n(.*?)```', doc, re.S)
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp)

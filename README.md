@@ -6,7 +6,7 @@ Open-source skills and components for GPDoc.
 
 ## Skills
 
-- [GPDoc Markdown](skills/README.md): create and edit GPDoc Markdown, comments, and pending suggestions with ordinary file tools. No GPDoc client or additional service is required.
+- [GPDoc Markdown](INSTALL.md): create and edit GPDoc Markdown, comments, and pending suggestions with ordinary file tools. No GPDoc client or additional service is required.
 
 ## Install the skill
 
@@ -25,13 +25,13 @@ Start a fresh Claude Code session and use:
 /gpdoc-markdown:gpdoc-markdown Create a GPDoc project brief at brief.md.
 ```
 
-The public `gpdoc-components` marketplace is maintained by Repetere. This is not a claim of inclusion in Anthropic's directory or `claude-plugins-official`; directory publication requires a separate submission and approval. See [installation, updates, and verification](skills/README.md#claude-code).
+The public `gpdoc-components` marketplace is maintained by Repetere. This is not a claim of inclusion in Anthropic's directory or `claude-plugins-official`; directory publication requires a separate submission and approval. See [installation, updates, and verification](INSTALL.md#claude-code).
 
 The plugin bundles the same standalone MIT-licensed skill below. It has no MCP server, hooks, account setup, or GPDoc application dependency. It uses your agent's existing file tools and permissions. Rendering, cloud synchronization, and live collaborative editing are separate capabilities.
 
 ### Codex and manual installation
 
-Choose [Claude Code, Codex, or manual installation](skills/README.md#quickstart-choose-your-agent), then create your first file. The [website quickstart](https://repetere.github.io/gpdoc-components/#quickstart) includes copyable commands and the full skill instructions.
+Choose [Claude Code, Codex, or manual installation](INSTALL.md#quickstart-choose-your-agent), then create your first file. The [website quickstart](https://repetere.github.io/gpdoc-components/#quickstart) includes copyable commands and the full skill instructions.
 
 ## Standalone document profile
 
@@ -54,5 +54,9 @@ For a plugin release, run `claude plugin validate --strict .claude-plugin/plugin
 
 ## License
 
-[MIT](LICENSE), copyright (c) 2026 Repetere. The standalone skill includes its own copy of the license.
+[MIT](LICENSE), copyright (c) 2026 Repetere. The standalone skill includes its own copy of the license. The [GPDoc brand icon](assets/NOTICE.md) is excluded from the MIT license.
+
+## Privacy and support
+
+See the [standalone plugin's privacy disclosure](PRIVACY.md). For support, use [GitHub issues](https://github.com/repetere/gpdoc-components/issues) or support@gpdoc.io. Send private privacy or security reports by email, without posting sensitive documents in a public issue.
 
