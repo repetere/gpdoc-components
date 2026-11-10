@@ -8,11 +8,28 @@ No GPDoc app, extension, CLI, MCP server, login, or network connection is needed
 
 ### Quickstart: choose your agent
 
-Install once, then ask your agent to use `gpdoc-markdown`. These are **local Claude Code and Codex** instructions, not Claude.ai/Cowork or hosted ChatGPT account installation. Review the [complete skill source](gpdoc-markdown/SKILL.md) and its references before enabling it. No plugin marketplace, GPDoc login, or client installation is required.
+Install once, then ask your agent to use `gpdoc-markdown`. These are **local Claude Code and Codex** instructions, not Claude.ai/Cowork or hosted ChatGPT account installation. Review the [complete skill source](gpdoc-markdown/SKILL.md) and its references before enabling it. Claude Code can install from the public marketplace or use a manual skill copy; neither requires a GPDoc login or client installation.
 
 #### Claude Code
 
-Run in a terminal from your project root (requires Git and a POSIX shell). Clone into a new `gpdoc-components` directory, inspect the skill, then install it:
+The recommended installation uses the public Repetere marketplace. Run in your terminal with Claude Code installed:
+
+```bash
+claude plugin marketplace add repetere/gpdoc-components
+claude plugin install gpdoc-markdown@gpdoc-components
+```
+
+Start a fresh Claude Code session, then invoke the plugin's namespaced skill:
+
+```text
+/gpdoc-markdown:gpdoc-markdown Create a GPDoc project brief at brief.md.
+```
+
+Check `claude plugin list` for `gpdoc-markdown@gpdoc-components` with enabled status, and `claude plugin details gpdoc-markdown` for the `gpdoc-markdown` skill. The plugin also appears in `/plugin` after you add the marketplace. Update with `claude plugin update gpdoc-markdown@gpdoc-components`. Third-party marketplace auto-updates are off by default; review a release before updating. Keep local customizations in your own skill copy rather than editing the plugin cache.
+
+This is Repetere's self-hosted marketplace, not an Anthropic directory listing or an entry in `claude-plugins-official`. Those are separate distribution routes and require acceptance by Anthropic. The plugin ships no hooks or MCP servers and grants no extra permissions.
+
+**Manual alternative:** to install just the skill in one project, run from your project root (requires Git and a POSIX shell). Clone into a new `gpdoc-components` directory, inspect the skill, then copy it:
 
 ```sh
 git clone https://github.com/repetere/gpdoc-components.git
@@ -22,13 +39,15 @@ mkdir .claude/skills/gpdoc-markdown && \
   cp -R gpdoc-components/skills/gpdoc-markdown/. .claude/skills/gpdoc-markdown/
 ```
 
-In Claude Code, invoke:
+With the manual copy, invoke the unnamespaced skill instead:
 
 ```text
 /gpdoc-markdown Create a GPDoc project brief at brief.md.
 ```
 
 For all your local projects, substitute `~/.claude/skills` for `.claude/skills`. The final `mkdir` deliberately refuses an existing installation. To update, compare the old and new folders and preserve any local edits first. Claude Code discovers skill changes automatically; start a fresh session if the command does not appear.
+
+Choose either the marketplace plugin or a manual copy to avoid duplicate skill names. Existing manual installations continue to work; do not remove a customized copy without reviewing it.
 
 #### Codex
 
@@ -76,7 +95,7 @@ Installation downloads public files; subsequent file authoring needs no network.
 
 Verify with the sample prompt above: confirm the skill was selected, inspect the generated file and diff, and do not treat successful installation as proof of rendering or client interoperability.
 
-Sources: [Claude Code skills](https://code.claude.com/docs/en/skills), [Codex skills](https://developers.openai.com/codex/skills/). Quickstart organization inspired by [Linked-Intent Development](https://linked-intent.dev/#quickstart); GPDoc uses a standalone skill folder rather than LID's plugins.
+Sources: [Claude Code skills](https://code.claude.com/docs/en/skills), [publishing Claude Code plugins](https://code.claude.com/docs/en/plugins/publish), [Codex skills](https://developers.openai.com/codex/skills/). Quickstart organization inspired by [Linked-Intent Development](https://linked-intent.dev/#quickstart).
 
 ### Try it
 

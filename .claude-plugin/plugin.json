@@ -1,0 +1,14 @@
+{
+  "name": "gpdoc-markdown",
+  "displayName": "GPDoc Markdown",
+  "version": "1.0.0",
+  "description": "Create and edit GPDoc Markdown, comments, pending suggestions, JSON slides, notebooks, and scripts with ordinary file tools. No GPDoc client or account required.",
+  "author": {
+    "name": "Repetere",
+    "url": "https://github.com/repetere"
+  },
+  "homepage": "https://repetere.github.io/gpdoc-components/",
+  "repository": "https://github.com/repetere/gpdoc-components",
+  "license": "MIT",
+  "keywords": ["gpdoc", "markdown", "documents", "comments", "suggestions", "slides", "notebooks"]
+}

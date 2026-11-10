@@ -11,3 +11,18 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
+  claude-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Claude Code validator
+        run: npm install --prefix "$RUNNER_TEMP/claude-validator" --no-save @anthropic-ai/claude-code@2.1.322
+      - name: Validate plugin and marketplace
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-config
+        run: |
+          "$RUNNER_TEMP/claude-validator/node_modules/.bin/claude" plugin validate --strict .claude-plugin/plugin.json
+          "$RUNNER_TEMP/claude-validator/node_modules/.bin/claude" plugin validate --strict .claude-plugin/marketplace.json

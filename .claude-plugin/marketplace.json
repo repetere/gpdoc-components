@@ -1,0 +1,19 @@
+{
+  "name": "gpdoc-components",
+  "owner": {
+    "name": "Repetere"
+  },
+  "metadata": {
+    "description": "Open-source GPDoc skills for file authoring and document review."
+  },
+  "plugins": [
+    {
+      "name": "gpdoc-markdown",
+      "source": "./",
+      "description": "Create and review GPDoc Markdown and structured files without a GPDoc client or account.",
+      "category": "productivity",
+      "tags": ["gpdoc", "markdown", "documents", "review"],
+      "strict": true
+    }
+  ]
+}
