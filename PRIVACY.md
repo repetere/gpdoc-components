@@ -2,21 +2,25 @@
 
 Effective date: November 10, 2026.
 
-This disclosure covers the standalone `gpdoc-markdown` skill and Claude Code plugin in [repetere/gpdoc-components](https://github.com/repetere/gpdoc-components). It does not cover the separate GPDoc application, GPEditor, or other plugins.
+This disclosure covers the standalone `gpdoc-markdown` skill and Claude Code plugin in [repetere/gpdoc-components](https://github.com/repetere/gpdoc-components). It is an instruction-only guide for formatting and editing GPDoc Markdown and related document formats. The skill itself does not collect, store, retain, or transmit document data.
 
-## Files and personal data
+This skill is separate from the GPDoc application and the GPEditor plugin. It does not open GPEditor, connect an MCP server, or sign in to a GPDoc account. This disclosure does not describe those separate products.
 
-The skill is a set of instructions for the host assistant's ordinary file tools. At your request, the assistant can read, create, and edit local documents, including their comments, suggested changes, and metadata. Files you choose may contain personal data. Only provide files and information you are authorized to use.
+## What the skill provides
 
-The plugin has no MCP server, background service, account system, telemetry, or analytics. It does not send document content to Repetere or operate a separate remote storage service. It does not instruct the assistant to send your documents to other services or to execute document code.
+The skill provides format instructions and examples. It has no executable runtime, MCP server, background service, account system, telemetry, analytics, or data storage. It does not independently access files or send document content to Repetere or other services.
+
+When you ask your assistant to use the skill, the assistant applies those instructions using its existing tools and permissions. The skill does not instruct it to upload documents or execute code contained in a document.
 
 ## Host assistant and other services
+
+The host assistant, not a GPDoc service, performs any requested file reading or writing. Documents you provide may contain personal data, and the assistant can update their comments, suggested changes, and metadata. Only provide files and information you are authorized to use.
 
 The host assistant processes the files you ask it to work on under that provider's terms, privacy policy, and your account settings. For Claude, see [Anthropic's Privacy Policy](https://www.anthropic.com/legal/privacy). If you use another assistant, review that provider's policy. A file in a cloud-synced folder or backup may also be stored by your chosen storage provider. Those services are separate from this plugin.
 
 ## Retention and deletion
 
-The plugin does not maintain a Repetere-hosted copy of your documents or a separate retention system. Files and review metadata created or changed on your computer remain there until you edit or delete them. The plugin does not automatically expire those files. Removing the plugin does not remove your documents. Manage any host-assistant history, synced copies, and backups through their respective services.
+There is no skill-side data retention and no Repetere-hosted copy of your documents. Any output files written by your assistant remain in the location you choose until you edit or delete them. Those user-controlled files are not data retained by this skill. Removing the skill does not remove your documents. Manage any host-assistant history, synced copies, and backups through their respective services.
 
 ## Children
 
