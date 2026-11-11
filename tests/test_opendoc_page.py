@@ -101,9 +101,11 @@ class OpenDocPageTests(unittest.TestCase):
 
     def test_working_and_planned_capabilities_are_explicit(self):
         for statement in (
-            'AVAILABLE IN V0.7',
+            'AVAILABLE IN V0.8',
             'Automatic live-ticket renewal and bounded reconnect',
             'not a durable offline queue',
+            'Opt-in cross-instance live synchronization through one shared PostgreSQL primary',
+            'database failover and multi-primary safety are not provided',
             'tenant and role checks',
             'Revision conflict handling',
             'Signed deployment-profile verification',
@@ -111,7 +113,7 @@ class OpenDocPageTests(unittest.TestCase):
             'PostgreSQL storage with transactional revision checks',
             'Pinned-key RS256 access-token validation and server-owned membership',
             'PLANNED / NOT IMPLEMENTED',
-            'Production identity-provider validation, cross-instance collaboration, and rich-text editor integration',
+            'Production identity-provider validation, collaboration scaling, and rich-text editor integration',
             'Experimental authenticated WebSocket/Yjs rooms with durable PostgreSQL snapshots',
             'Both modes remain experimental',
             'Opt-in live text collaboration with a separate Yjs authority and persisted update acknowledgements',

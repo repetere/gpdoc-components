@@ -1,6 +1,6 @@
 // Original experimental OpenDoc transport. MIT. Not y-websocket compatible.
 import { createServer } from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { MAX_COLLABORATION_UPDATE_BYTES, MAX_COLLABORATION_STATE_BYTES, LIVE_DOCUMENT_LIMITS } from './collaboration-state.mjs';
 
@@ -58,13 +58,26 @@ function stateFrame(value, allowMissing = true) {
  * plus frozen {connectionId}: a stable, random server-owned ID for this socket.
  * It MUST verify credentials and consult current trusted tenant membership on
  * every call. A verified tenant role grants all rooms in that tenant in v1.
+ * sharedLiveSync opts live v2 rooms into bounded periodic reads from ONE fixed
+ * PostgreSQL primary/schema. The trusted store kind is not authority discovery
+ * or failover protection. Default behavior and standalone v1 stay process-local.
  */
-export function attachCollaborationServer({ server, store, liveStore, authenticate, allowedOrigins, allowMissingOrigin = false, limits = {} } = {}) {
+export function attachCollaborationServer({ server, store, liveStore, authenticate, allowedOrigins, allowMissingOrigin = false, limits = {}, sharedLiveSync } = {}) {
   if (!server || typeof server.on !== 'function' || (!store && !liveStore) ||
       [store, liveStore].filter(Boolean).some(value => typeof value.get !== 'function' || typeof value.applyUpdate !== 'function') || typeof authenticate !== 'function') {
     throw new TypeError('Explicit HTTP server, collaboration store and authenticator required');
   }
   if (typeof allowMissingOrigin !== 'boolean') throw new TypeError('Invalid allowMissingOrigin');
+  let syncInterval;
+  if (sharedLiveSync !== undefined) {
+    if (!sharedLiveSync || Object.getPrototypeOf(sharedLiveSync) !== Object.prototype ||
+      Object.keys(sharedLiveSync).some(key => key !== 'intervalMs') ||
+      liveStore?.kind !== 'postgresql-live-documents' || typeof liveStore.getIfChanged !== 'function') {
+      throw new TypeError('sharedLiveSync requires a PostgreSQL live store and explicit options');
+    }
+    syncInterval = Object.hasOwn(sharedLiveSync, 'intervalMs') ? sharedLiveSync.intervalMs : 1000;
+    if (!Number.isSafeInteger(syncInterval) || syncInterval < 50 || syncInterval > 30000) throw new TypeError('Invalid sharedLiveSync intervalMs');
+  }
   const origins = parseOrigins(allowedOrigins);
   if (!limits || typeof limits !== 'object' || Array.isArray(limits) || Object.keys(limits).some(key => !Object.hasOwn(DEFAULTS, key))) throw new TypeError('Unknown transport limit');
   const config = { ...DEFAULTS, ...limits };
@@ -77,6 +90,7 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
   let stopped = false;
   let pending = 0;
   let dependencies = 0;
+  let syncTimer;
 
   function stop(client, code = 1008, reason = 'Access denied.') {
     if (client.closed) return;
@@ -100,6 +114,7 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
   // A timed-out dependency keeps its admission slot until it really settles.
   // An uncooperative adapter cannot accumulate unlimited abandoned promises.
   async function dependency(operation, { fence = false, onTimeout = () => {} } = {}) {
+    if (stopped) throw new TransportError('DEPENDENCY_UNAVAILABLE');
     if (dependencies >= config.maxDependencyOperations) throw new TransportError('CAPACITY_EXCEEDED');
     dependencies++;
     let timer;
@@ -131,29 +146,64 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
     return client.identity;
   }
   function send(client, data) {
-    if (client.closed || client.ws.readyState !== WebSocket.OPEN) return;
+    if (stopped || client.closed || client.ws.readyState !== WebSocket.OPEN) return false;
     const size = typeof data === 'string' ? Buffer.byteLength(data) : data.byteLength;
-    if (client.ws.bufferedAmount + size > config.maxBufferedBytes) { stop(client, 1013, 'Slow consumer.'); return; }
+    if (client.ws.bufferedAmount + size > config.maxBufferedBytes) { stop(client, 1013, 'Slow consumer.'); return false; }
     client.ws.send(data, error => { if (error) stop(client, 1011, 'Connection unavailable.'); });
+    return true;
+  }
+  function requireResync(room) {
+    for (const receiver of room.clients) stop(receiver, 1011, 'Room resync required.');
+  }
+  function roomFrame(room, value, allowMissing = true) {
+    try {
+      const frame = stateFrame(value, allowMissing);
+      if (room.shared) {
+        const revision = value?.revision;
+        const digest = createHash('sha256').update(frame.subarray(9)).digest('hex');
+        if (revision < room.revision || revision === room.revision && digest !== room.digest) {
+          throw new TransportError('DEPENDENCY_UNAVAILABLE');
+        }
+        room.revision = revision; room.digest = digest;
+      }
+      return frame;
+    } catch (error) { if (room.shared) requireResync(room); throw error; }
+  }
+  function sendState(client, frame, force = false) {
+    if (client.room?.shared) {
+      const revision = Number(frame.readBigUInt64BE(1));
+      if (revision < client.revision) { requireResync(client.room); throw new TransportError('DEPENDENCY_UNAVAILABLE'); }
+      if (revision === client.revision && !force) return;
+      if (send(client, frame)) client.revision = revision;
+    } else send(client, frame);
+  }
+  async function fanout(room, frame) {
+    // Reauthorization is independent for every receiver, including on a no-op
+    // mutation; an unchanged state is never confused with a persistence ACK.
+    await Promise.all([...room.clients].map(async receiver => {
+      try { await authorize(receiver); sendState(receiver, frame); } catch (error) { failClient(receiver, error); }
+    }));
   }
   function retireRoom(room) {
     if (room.clients.size === 0 && room.pending === 0) rooms.delete(room.key);
+  }
+  async function roomOperation(room, action) {
+    room.pending++;
+    const operation = room.tail.then(async () => { if (!stopped) await action(room); });
+    room.tail = operation.catch(() => {});
+    try { await operation; } finally { room.pending--; retireRoom(room); }
   }
   async function inRoom(client, action) {
     const key = JSON.stringify([client.live ? 'live' : 'standalone', client.identity.tenantId, client.roomId]);
     let room = rooms.get(key);
     if (!room) {
       if (rooms.size >= config.maxRooms) throw new TransportError('CAPACITY_EXCEEDED');
-      room = { key, clients: new Set(), pending: 0, tail: Promise.resolve() };
+      room = { key, clients: new Set(), pending: 0, tail: Promise.resolve(),
+        shared: Boolean(client.live && syncInterval), tenantId: client.identity.tenantId,
+        documentId: client.roomId, store: client.store, revision: 0, digest: null };
       rooms.set(key, room);
     }
-    room.pending++;
-    const operation = room.tail.then(async () => {
-      if (client.closed) return;
-      await action(room);
-    });
-    room.tail = operation.catch(() => {});
-    try { await operation; } finally { room.pending--; retireRoom(room); }
+    await roomOperation(room, async () => { if (!client.closed) await action(room); });
   }
   function enqueue(client, action) {
     if (client.closed) return;
@@ -162,14 +212,51 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
     client.tail = client.tail.then(async () => { if (!client.closed) await action(); })
       .catch(error => failClient(client, error)).finally(() => { client.pending--; pending--; });
   }
-  async function snapshot(client) {
+  async function snapshot(client, room) {
     await authorize(client);
     const value = await dependency(() => client.store.get(client.identity.tenantId, client.roomId));
     if (client.live && value === null) throw new TransportError('NOT_FOUND');
-    const frame = stateFrame(value);
+    const frame = roomFrame(room, value, !client.live);
     // Membership may have been revoked while the storage read was pending.
     await authorize(client);
-    send(client, frame);
+    sendState(client, frame, true);
+  }
+  function scheduleSync() {
+    if (stopped || syncInterval === undefined) return;
+    syncTimer = setTimeout(pollRooms, syncInterval); syncTimer.unref();
+  }
+  async function pollRooms() {
+    // Snapshot the bounded room set once. One sweep and at most one queued or
+    // active poll exist, regardless of slow storage, auth, or missed intervals.
+    for (const room of [...rooms.values()]) {
+      if (stopped) break;
+      // Never queue behind a room's unresolved mutation fence: an adapter that
+      // never settles must not prevent healthy, unrelated rooms from polling.
+      // No await separates this admission check from roomOperation below.
+      if (!room.shared || room.clients.size === 0 || room.pending !== 0) continue;
+      if (pending >= config.maxPendingOperations) break;
+      pending++;
+      try {
+        await roomOperation(room, async () => {
+          const receivers = [...room.clients].filter(client => !client.closed);
+          if (!receivers.length) return;
+          // A join or explicit sync may observe a newer revision before idle
+          // room members do. Poll from the oldest delivered revision, while
+          // validating every result against the maximum observed room floor.
+          const revision = Math.min(...receivers.map(client => client.revision));
+          const value = await dependency(() => room.store.getIfChanged(room.tenantId, room.documentId, revision));
+          if (stopped) return;
+          if (value === null) {
+            if (revision !== room.revision) throw new TransportError('DEPENDENCY_UNAVAILABLE');
+            return;
+          }
+          const frame = roomFrame(room, value, false);
+          await fanout(room, frame);
+        });
+      } catch { requireResync(room); }
+      finally { pending--; }
+    }
+    scheduleSync();
   }
   async function processMessage(client, bytes, binary) {
     if (!client.authenticated) {
@@ -186,13 +273,13 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
         await authorize(client);
         const value = await dependency(() => client.store.get(client.identity.tenantId, client.roomId));
         if (client.live && value === null) throw new TransportError('NOT_FOUND');
-        const frame = stateFrame(value);
+        const frame = roomFrame(room, value, !client.live);
         await authorize(client);
         room.clients.add(client); client.room = room;
         client.authenticated = true;
         clearTimeout(client.authenticationTimer);
         send(client, JSON.stringify({ type: 'ready', protocol: client.live ? 'opendoc-yjs-2' : 'opendoc-yjs-1', role: client.identity.role }));
-        send(client, frame);
+        sendState(client, frame, true);
       });
       return;
     }
@@ -200,7 +287,7 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
       let value;
       try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); } catch { throw new TransportError('BAD_REQUEST'); }
       if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length !== 1 || value.type !== 'sync') throw new TransportError('BAD_REQUEST');
-      await inRoom(client, () => snapshot(client));
+      await inRoom(client, room => snapshot(client, room));
       return;
     }
     const offset = client.live ? 5 : 1;
@@ -215,28 +302,26 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
     }
     await inRoom(client, async room => {
       await authorize(client, true);
-      const requireResync = () => {
+      const resync = () => {
         // A late/ambiguous commit must not leave connected readers silently stale.
-        for (const receiver of room.clients) stop(receiver, 1011, 'Room resync required.');
+        requireResync(room);
       };
       let frame, result;
       try {
         result = await dependency(() => client.store.applyUpdate(client.identity.tenantId, client.roomId, new Uint8Array(bytes.subarray(offset))), {
-          fence: true, onTimeout: requireResync
+          fence: true, onTimeout: resync
         });
         // An invalid result may follow a successful commit too.
-        frame = stateFrame(result, false);
+        frame = roomFrame(room, result, false);
       } catch (error) {
         // These narrow store outcomes guarantee rejection/rollback. All other
         // failures (including a lost COMMIT response) have an uncertain outcome.
-        if (!['BAD_REQUEST', 'TOO_LARGE', 'CAPACITY_EXCEEDED', 'NOT_FOUND'].includes(error?.code)) requireResync();
+        if (!['BAD_REQUEST', 'TOO_LARGE', 'CAPACITY_EXCEEDED', 'NOT_FOUND'].includes(error?.code)) resync();
         throw error;
       }
       // Never send an uncommitted update. Every receiver is independently
       // revalidated, including idle viewers and the original editor.
-      await Promise.all([...room.clients].map(async receiver => {
-        try { await authorize(receiver); send(receiver, frame); } catch (error) { failClient(receiver, error); }
-      }));
+      await fanout(room, frame);
       if (client.live) {
         await authorize(client);
         send(client, JSON.stringify({ type: 'ack', sequence, revision: result.revision }));
@@ -244,7 +329,7 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
     });
   }
   function accept(ws, request, roomId, origin, live) {
-    const client = { authContext: Object.freeze({ connectionId: randomBytes(32).toString('base64url') }), ws, roomId, origin, live, store: live ? liveStore : store, path: request.url, sequence: 0, token: null, identity: null, authenticated: false, closed: false, pending: 0, tail: Promise.resolve(), room: null };
+    const client = { authContext: Object.freeze({ connectionId: randomBytes(32).toString('base64url') }), ws, roomId, origin, live, store: live ? liveStore : store, path: request.url, sequence: 0, revision: 0, token: null, identity: null, authenticated: false, closed: false, pending: 0, tail: Promise.resolve(), room: null };
     clients.add(client);
     client.authenticationTimer = setTimeout(() => stop(client, 1008, 'Authentication required.'), config.authenticationTimeoutMs);
     client.authenticationTimer.unref();
@@ -286,11 +371,13 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
     wss.handleUpgrade(request, socket, head, ws => accept(ws, request, match[1], origin, Boolean(liveMatch)));
   }
   server.on('upgrade', upgrade);
+  scheduleSync();
   return {
     stats: () => Object.freeze({ connections: clients.size, rooms: rooms.size, pendingOperations: pending, dependencyOperations: dependencies }),
     async close() {
       if (stopped) return;
       stopped = true;
+      clearTimeout(syncTimer);
       server.off('upgrade', upgrade);
       for (const client of clients) { stop(client, 1001, 'Server stopping.'); client.ws.terminate(); }
       await new Promise(resolve => wss.close(resolve));

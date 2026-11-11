@@ -2,9 +2,9 @@
 
 An original, MIT-licensed foundation for portable document services in `gpdoc-components`.
 
-**v0.7 is an experimental foundation, not a production collaborative editor.** It implements a text-document API, tenant/role boundaries, revision checks, signed deployment profiles, PostgreSQL storage, strict access-token validation, authenticated Yjs collaboration rooms, browser OIDC login, server-owned account mappings, optional shared authentication state, a REST text editor, and an opt-in live text editor with authoritative Yjs documents, automatic short-lived ticket renewal, and bounded reconnect. It does not include the full GPDoc application or extension.
+**v0.8 is an experimental foundation, not a production collaborative editor.** It implements a text-document API, tenant/role boundaries, revision checks, signed deployment profiles, PostgreSQL storage, strict access-token validation, authenticated Yjs collaboration rooms, browser OIDC login, server-owned account mappings, optional shared authentication state, a REST text editor, and an opt-in live text editor with authoritative Yjs documents, automatic short-lived ticket renewal, bounded reconnect, and opt-in shared-primary live synchronization. It does not include the full GPDoc application or extension.
 
-[OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md) · [Browser login](docs/browser-login.md) · [Accounts](docs/accounts.md) · [Shared sessions](docs/shared-sessions.md) · [REST editor](docs/web-client.md) · [Live documents](docs/live-documents.md) · [Live editor](docs/live-editor.md)
+[OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md) · [Browser login](docs/browser-login.md) · [Accounts](docs/accounts.md) · [Shared sessions](docs/shared-sessions.md) · [REST editor](docs/web-client.md) · [Live documents](docs/live-documents.md) · [Live editor](docs/live-editor.md) · [Shared live synchronization](docs/shared-collaboration.md)
 
 ## Run locally
 
@@ -101,7 +101,7 @@ Open the printed loopback URL on the same computer. Choose a synthetic account a
 
 - Production Ping/Entra/Google interoperability, deployment-specific issuer/client registration and key rotation/revocation tests, federated logout, production session/key operations and membership administration UI. Browser login is tested against an isolated standards-based provider; this is not certification of every provider or deployment. The separate bearer adapter still requires its strict RFC 9068-style token profile.
 - Production PostgreSQL operations and upgrades, document ACL management, object-storage adapters and backup/restore validation.
-- Document-specific sharing, public-link policy, audit export, collaboration across server instances and deliberate import/export between REST and live documents. Each format has a separate authority; there is no automatic synchronization or conversion.
+- Document-specific sharing, public-link policy, audit export, event-driven collaboration scaling and deliberate import/export between REST and live documents. Each format has a separate authority; there is no automatic synchronization or conversion.
 - Durable browser offline recovery (pending text currently remains only in the open tab), rich-text editing, configurable branding and rebrandable extension clients with managed enrollment. See the [offline recovery requirements](docs/offline-recovery.md).
 - Executable cloud infrastructure and provider integration tests.
 - Air-gap bundle with a complete deployment SBOM/license inventory, blocked-egress tests and offline operational validation.

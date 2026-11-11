@@ -166,7 +166,8 @@ export async function initializePostgresLiveDocumentSchema({ pool, schema, ...op
  * Caller-owned pool; Yjs bytes and derived projection commit in the SAME row.
  * Quota-row locks serialize mutations across processes; shared read locks fence
  * reconnects behind uncertain commits. No snapshot replacement method exists.
- * WebSocket fanout remains single-process; multiple writers need explicit sync.
+ * Optional WebSocket polling can synchronize servers using this same primary
+ * and schema. This adapter does not provide database failover or leader election.
  */
 export class PostgresLiveDocumentStore {
   kind = 'postgresql-live-documents';
@@ -197,6 +198,27 @@ export class PostgresLiveDocumentStore {
       const { rows } = await client.query(`SELECT * FROM ${this.#schema}.live_documents WHERE tenant_id = $1 AND document_id = $2`, [tenant, id]);
       if (rows.length > 1) fail('DEPENDENCY_UNAVAILABLE');
       return rows.length ? document(rows[0]) : null;
+    });
+  }
+  /** Poll a committed revision without decoding unchanged CRDT state.
+   * The shared quota-row lock fences unresolved writes throughout both reads.
+   * Normal writes must advance the revision; direct row edits, independent
+   * cloned databases and transparent authority changes are outside this contract.
+   */
+  async getIfChanged(tenant, id, knownRevision) {
+    scope(tenant, id);
+    if (!Number.isSafeInteger(knownRevision) || knownRevision < 1) fail('BAD_REQUEST');
+    return connection(this.#pool, async client => {
+      await this.#state(client);
+      const { rows } = await client.query(`SELECT revision FROM ${this.#schema}.live_documents WHERE tenant_id = $1 AND document_id = $2`, [tenant, id]);
+      if (!rows.length) fail('NOT_FOUND');
+      if (rows.length !== 1) fail('DEPENDENCY_UNAVAILABLE');
+      const revision = integer(rows[0].revision, 1);
+      if (revision < knownRevision) fail('DEPENDENCY_UNAVAILABLE');
+      if (revision === knownRevision) return null;
+      const current = await client.query(`SELECT * FROM ${this.#schema}.live_documents WHERE tenant_id = $1 AND document_id = $2`, [tenant, id]);
+      if (current.rows.length !== 1 || integer(current.rows[0].revision, 1) !== revision) fail('DEPENDENCY_UNAVAILABLE');
+      return document(current.rows[0]);
     });
   }
   async create(tenant, input) {

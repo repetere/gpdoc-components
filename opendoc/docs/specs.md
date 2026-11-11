@@ -93,4 +93,12 @@ The REST editor does not claim live collaboration, offline persistence, document
 - **OD-LIVE-008:** Automatic renewal shall obtain a fresh, route-bound ticket after rechecking the current session and the identity bound to ticket issuance. It shall not extend ticket/session lifetimes, replay another principal's or tenant's retained state, or continue after explicit pause, logout or superseding navigation.
 - **OD-LIVE-009:** Transient reconnect attempts shall be bounded, visible and cancellable. Lost acknowledgements shall preserve pending state for idempotent replay. Authorization loss, invalid protocol and invalid retained state shall stop automatic submission. Retry exhaustion shall leave a manual recovery path without claiming durability.
 
-These requirements describe a bounded, single-fan-out-server evaluation. They do not imply rich-text formatting, per-document sharing, awareness/cursors, cross-instance fan-out, automatic REST/live conversion, durable browser offline storage, production provider interoperability or air-gap readiness.
+These requirements describe a bounded evaluation. They do not imply rich-text formatting, per-document sharing, awareness/cursors, automatic REST/live conversion, durable browser offline storage, production provider interoperability or air-gap readiness.
+
+## Shared-primary live synchronization requirements
+
+- **OD-LIVE-SHARED-001:** Cross-instance synchronization shall be explicit and limited to trusted PostgreSQL live adapters using the same fixed authoritative primary and schema. Memory stores and standalone v1 rooms shall not silently acquire shared semantics.
+- **OD-LIVE-SHARED-002:** Polls, joins, explicit syncs and writes shall preserve monotonic delivered revisions. Observing a newer revision for one client shall not strand other clients behind an advanced polling floor. State delivery shall not acknowledge an unconfirmed local mutation.
+- **OD-LIVE-SHARED-003:** Every receiving client shall be reauthorized after awaited reads and immediately before delivery. Tenant, document and route namespaces shall remain isolated across processes; revoked clients shall not receive new state.
+- **OD-LIVE-SHARED-004:** Polling and dependency work shall remain bounded without an accumulating timer backlog. Outages, invalid authority history and uncertain operations shall fail closed; shutdown and late results shall not resurrect rooms or send data.
+- **OD-LIVE-SHARED-005:** Tests shall use separate server processes and pools against real local PostgreSQL to exercise concurrent changes, deletions, restart/reopen, outages, revocation and acknowledgement uncertainty. These checks shall not imply database failover, automatic authority changes, multi-primary safety or production HA.
