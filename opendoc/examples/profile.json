@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "deploymentId": "example-deployment",
+  "tenantId": "example-tenant",
+  "tenantHint": "Unsigned example only; cannot enroll a client",
+  "generation": 1,
+  "issuedAt": "2026-11-01T00:00:00.000Z",
+  "expiresAt": "2026-12-01T00:00:00.000Z",
+  "endpoints": {
+    "api": "https://docs.example.test/api",
+    "collaboration": "wss://docs.example.test/collaboration"
+  },
+  "identity": {
+    "issuer": "https://identity.example.test/realms/example",
+    "audience": "urn:example:opendoc:api",
+    "clientId": "opendoc-public-client"
+  },
+  "brand": {
+    "displayName": "Example OpenDoc"
+  },
+  "telemetry": "off"
+}

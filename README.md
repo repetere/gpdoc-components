@@ -4,6 +4,10 @@ Open-source skills and components for GPDoc.
 
 [Website and documentation](https://repetere.github.io/gpdoc-components/)
 
+## OpenDoc
+
+[OpenDoc](https://repetere.github.io/gpdoc-components/opendoc/) is an original portable document-service foundation. The [runnable local reference](opendoc/README.md) includes a tenant-scoped text API, conditional revisions, signed deployment profiles, a PostgreSQL store adapter, a strict access-token authentication adapter, experimental authenticated Yjs collaboration rooms, browser OIDC login with server-owned account mapping, optional shared PostgreSQL auth state, and an authenticated text editor. Collaboration uses a separate state model and custom WebSocket protocol; the text editor uses separate revision-checked REST saves, and this is not a production multi-instance service. The browser login adapter is tested with an isolated identity provider, not a production enterprise deployment. Cloud object-storage adapters, production provider validation, rich-text editing and extension clients remain planned. See [AWS, GCP, Azure and open-source Kubernetes reference architectures](opendoc/docs/deployment.md) for the proposed production boundaries and validation requirements.
+
 ## Skills
 
 - [GPDoc Markdown](INSTALL.md): create and edit GPDoc Markdown, comments, and pending suggestions with ordinary file tools. No GPDoc client or additional service is required.
@@ -51,6 +55,8 @@ See the [actual agent exercise and limits](tests/agent-exercises.md), including 
 Run `python -m unittest discover -s tests` to validate the examples, fixture expectations, review invariants and reference links. Run `python tools/validate_gpdoc.py path/to/document.md` to check a document. JSON needs only Python 3.10+; YAML validation optionally uses PyYAML.
 
 The website's browser regression checks run separately: install `playwright==1.62.0` with pip, run `python -m playwright install chromium webkit`, then run `python tests/browser/test_reference_layout.py`. Repeat with `BROWSER_ENGINE=webkit` for Safari's engine. The checks cover narrow phones, tablets, desktop widths, expanded reference content, code-block scrolling, navigation, and the interactive preview. CI runs both engines.
+
+With Node.js 22+, run `npm ci --prefix opendoc --ignore-scripts`, then `npm test --prefix opendoc` for OpenDoc API, HTTP, profile, authentication and storage-port checks. Real database checks are separate; see [PostgreSQL test setup](opendoc/docs/postgres.md).
 
 The distributable plugin is in [`plugins/gpdoc-markdown`](plugins/gpdoc-markdown). It contains only the skill, text documentation, manifests, license, privacy disclosure, and brand icon. Repository validators, tests, and website code are development resources, not part of the installed plugin.
 

@@ -3,6 +3,56 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
+  opendoc:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci --prefix opendoc --ignore-scripts
+      - run: npm run check:web --prefix opendoc
+      - run: npm test --prefix opendoc
+  opendoc-postgres:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['16', '17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: opendoc_test
+          POSTGRES_PASSWORD: synthetic-test-only
+          POSTGRES_DB: opendoc_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opendoc_test -d opendoc_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix opendoc --ignore-scripts
+      - name: Identify this test service
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: |
+          address=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$POSTGRES_CONTAINER_ID")
+          printf 'OPENDOC_PG_EXPECTED_SERVER_ADDRESS=%s\n' "$address" >> "$GITHUB_ENV"
+      - name: Test isolated PostgreSQL store
+        run: npm run test:postgres --prefix opendoc
+        env:
+          OPENDOC_PG_INTEGRATION: '1'
+          DATABASE_URL: postgres://opendoc_test:synthetic-test-only@127.0.0.1:5432/opendoc_test
   test:
     runs-on: ubuntu-latest
     steps:

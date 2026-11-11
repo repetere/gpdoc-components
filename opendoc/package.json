@@ -1,0 +1,48 @@
+{
+  "name": "@gpdoc/opendoc-foundation",
+  "version": "0.7.0",
+  "private": true,
+  "description": "Original portable document API and deployment-profile reference foundation",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:postgres": "node --test integration/*.test.mjs",
+    "demo": "node src/demo.mjs",
+    "demo:editor": "node test/fixtures/editor-demo.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "check:web": "node scripts/build-web.mjs --check"
+  },
+  "exports": {
+    ".": "./src/api.mjs",
+    "./profile": "./src/profile.mjs",
+    "./memory-store": "./src/memory-store.mjs",
+    "./node": "./src/node-adapter.mjs",
+    "./postgres-store": "./src/postgres-store.mjs",
+    "./access-token-auth": "./src/access-token-auth.mjs",
+    "./collaboration-server": "./src/collaboration-server.mjs",
+    "./collaboration-client": "./src/collaboration-client.mjs",
+    "./collaboration-store": "./src/collaboration-store.mjs",
+    "./browser-oidc": "./src/browser-oidc.mjs",
+    "./account-store": "./src/account-store.mjs",
+    "./web-client": "./src/web-client.mjs",
+    "./browser-auth-state": "./src/browser-auth-state.mjs",
+    "./postgres-browser-auth-state": "./src/postgres-browser-auth-state.mjs",
+    "./live-document-store": "./src/live-document-store.mjs",
+    "./live-collaboration-client": "./src/live-collaboration-client.mjs"
+  },
+  "dependencies": {
+    "jose": "6.2.17",
+    "openid-client": "6.8.9",
+    "ws": "8.22.2",
+    "yjs": "13.6.33"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "oidc-provider": "9.13.3",
+    "pg": "8.23.1"
+  }
+}
