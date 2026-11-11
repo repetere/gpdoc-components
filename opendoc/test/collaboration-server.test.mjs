@@ -202,3 +202,21 @@ test('reject unsafe listener options and malformed configuration', async () => {
   await assert.rejects(startLocalCollaborationServer({ store: storeFixture(), authenticate: () => null, allowedOrigins: ['http://public.example'] }), /HTTPS/);
   await assert.rejects(startLocalCollaborationServer({ store: storeFixture(), authenticate: () => null, allowedOrigins: [ORIGIN], limits: { maxConnections: 9999 } }), /Invalid/);
 });
+
+test('authentication receives a stable frozen server-owned context unique to each socket', async t => {
+  const contexts = new Map();
+  const f = await fixture(t, { authenticate(request, context) {
+    const token = request.headers.get('authorization');
+    assert.equal(Object.isFrozen(context), true);
+    assert.deepEqual(Object.keys(context), ['connectionId']);
+    assert.match(context.connectionId, /^[a-zA-Z0-9_-]{43}$/);
+    if (contexts.has(token)) assert.equal(contexts.get(token), context);
+    else contexts.set(token, context);
+    return { principalId: 'user', tenantId: 'one', role: 'editor' };
+  } });
+  const a = await peer(t, f.url, 'first');
+  const b = await peer(t, f.url, 'second');
+  assert.notEqual(contexts.get('Bearer first').connectionId, contexts.get('Bearer second').connectionId);
+  a.ws.send('{"type":"sync"}'); await a.next();
+  b.ws.send('{"type":"sync"}'); await b.next();
+});

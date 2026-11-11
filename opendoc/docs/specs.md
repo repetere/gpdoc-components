@@ -20,7 +20,7 @@ Profile tests use descriptive sub-contract tags: `OD-PROFILE-SCHEMA` and `OD-PRO
 
 ## Intent edge audit
 
-The current foundation narrows portability to HTTP/auth/storage contracts, profile trust and an experimental collaboration protocol. The PostgreSQL adapter tests establish the exercised local SQL behaviors, not production backup/restore, database failover or cloud operations. Token tests establish strict pinned-key validation, not a complete enterprise login. Tests do not imply document ACLs, distributed collaboration, encryption-at-rest guarantees, cloud deployments or air-gap operation. A later implementation must add requirements/tests before advertising those capabilities.
+The current foundation narrows portability to HTTP/auth/storage contracts, profile trust, a bounded browser login adapter and an experimental collaboration protocol. The PostgreSQL adapter tests establish the exercised local SQL behaviors, not production backup/restore, database failover or cloud operations. Token and browser-login tests establish pinned identity verification with a synthetic local provider, not enterprise SSO certification. Tests do not imply document ACLs, distributed collaboration, encryption-at-rest guarantees, cloud deployments or air-gap operation. A later implementation must add requirements/tests before advertising those capabilities.
 
 ## Adapter requirements
 
@@ -50,3 +50,17 @@ The current foundation narrows portability to HTTP/auth/storage contracts, profi
 - **OD-COLLAB-008:** Clients shall use the documented custom protocol, keep credentials out of URLs, reject malformed state frames and stop on oversized replay rather than silently discard local edits.
 
 The integration suite composes synthetic signed access tokens, real loopback WebSockets, multiple Y.Docs and real PostgreSQL. It does not exercise a browser editor, an external identity provider, multiple live fan-out instances, database crash recovery or a disconnected network deployment. The REST capabilities endpoint remains scoped to the REST handler; collaboration must be attached separately.
+
+## Browser login and account requirements
+
+- **OD-LOGIN-001:** Browser login shall use authorization code with S256 PKCE, single-use state bound to a browser transaction cookie, nonce and verified RS256 ID-token signatures against operator-pinned endpoints and issuer. Invalid, cancelled, replayed or expired flows shall not establish a session.
+- **OD-LOGIN-002:** Provider tokens shall remain server-side and shall not be retained in local sessions. Browsers shall receive opaque, bounded, non-sliding HttpOnly sessions with Secure host-only cookies outside explicitly enabled loopback development. Unsafe authenticated requests shall require exact-origin, JSON and session-bound CSRF verification.
+- **OD-LOGIN-003:** Only fresh server-owned membership shall authorize requests and collaboration. Login shall not auto-enroll identities. Logout, session rotation, expiry and superseded login intents shall fence pending work, including a stalled request body, PKCE digest, token exchange or membership lookup.
+- **OD-LOGIN-004:** Browser collaboration tickets shall be short-lived, room/session-bound and bound to one server-generated connection ID. Session or membership revocation shall deny subsequent use; credentials shall never travel in WebSocket URLs.
+- **OD-LOGIN-005:** Session, transaction, ticket and dependency concurrency shall be bounded. Unsettled timed-out work shall retain its admission slot, and late results shall not mint credentials. Pinned provider fetches shall reject redirects and enforce response/time limits.
+- **OD-ACCOUNT-001:** Account bootstrap shall be explicit in a fresh schema. Exact issuer/subject bindings shall be immutable, length-bounded and lossless for well-formed Unicode; malformed encodings or conflicting associations shall fail closed.
+- **OD-ACCOUNT-002:** Principals, identity bindings and tenant memberships shall be provisioned only by explicit administrative APIs. Client claims and email addresses shall never link accounts or grant roles. Provisioning shall not reactivate a disabled principal.
+- **OD-ACCOUNT-003:** Membership lookups shall bind the active tenant and read current roles, revocations and principal state under the documented database barrier. Runtime lookup privileges shall be separable from administrative writes.
+- **OD-ACCOUNT-004:** Administrative mutations and quotas shall be atomic across connections, persistent across pool/process restart and fail closed on uncertain outcomes without automatic mutation retries. Database failures shall remain sanitized.
+
+`browser-oidc.test.mjs` covers protocol and lifecycle failures; `browser-login.integration.test.mjs` covers real local provider HTTP/JWKS flows, REST and WebSocket composition. `account-store.test.mjs` covers account validation and driver failure contracts. The PostgreSQL account and browser-account integration suites cover actual database isolation, persistence and revocation. A local Chromium smoke test additionally exercises synthetic consent, cancellation, editor writes, viewer denial and logout. This does not establish production TLS/SameSite behavior, external-provider compatibility or multi-instance session safety.

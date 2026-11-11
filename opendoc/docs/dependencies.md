@@ -3,6 +3,7 @@
 OpenDoc's original code uses the repository MIT license. Third-party packages retain their own licenses and notices. This file is an inventory of the pinned Node package graph, not a complete deployment SBOM or a security certification.
 
 - The HTTP core, memory demo and Ed25519 deployment-profile verifier use Node standard-library APIs only.
+- Browser login imports `openid-client` and its `oauth4webapi` dependency. The isolated identity-provider fixture imports `oidc-provider` only in tests/development. Preserve that package’s `THIRD-PARTY-NOTICES.md` as well as dependency licenses when redistributing fixtures. Neither library certification nor a passing local fixture certifies OpenDoc or a deployment.
 - The access-token adapter imports `jose` for JWT/JWK verification. The package is pinned exactly rather than reimplementing signature verification.
 - The experimental collaboration transport imports `ws`; its client and isolated merge worker import `yjs`. Yjs imports `lib0` and `isomorphic.js`. These are pinned in the lockfile, not copied from a private application.
 - The PostgreSQL adapter accepts a caller-owned Pool-compatible object and does not import a driver. Integration tests use the pinned `pg` driver. A host must install and configure its runtime database driver separately if it installs OpenDoc with development dependencies omitted.
@@ -12,13 +13,45 @@ OpenDoc's original code uses the repository MIT license. Third-party packages re
 
 ## Locked packages
 
-| Package | Version | Declared license | Use |
+| Package / lockfile path | Version | Declared license | Use |
 | --- | --- | --- | --- |
-| isomorphic.js | 0.2.5 | MIT | transitive collaboration runtime |
-| lib0 | 0.2.120 | MIT | transitive collaboration runtime |
-| ws | 8.22.2 | MIT | collaboration runtime |
-| yjs | 13.6.33 | MIT | collaboration runtime |
+| accepts | 1.3.8 | MIT | test/driver dependency |
+| accepts/node_modules/mime-db | 1.52.0 | MIT | test/driver dependency |
+| accepts/node_modules/mime-types | 2.1.35 | MIT | test/driver dependency |
+| content-disposition | 1.0.1 | MIT | test/driver dependency |
+| content-type | 1.0.5 | MIT | test/driver dependency |
+| cookies | 0.9.2 | MIT | test/driver dependency |
+| debug | 4.4.3 | MIT | test/driver dependency |
+| deep-equal | 1.0.1 | MIT | test/driver dependency |
+| delegates | 1.0.0 | MIT | test/driver dependency |
+| depd | 2.0.0 | MIT | test/driver dependency |
+| destroy | 1.2.0 | MIT | test/driver dependency |
+| ee-first | 1.1.1 | MIT | test/driver dependency |
+| encodeurl | 2.0.1 | MIT | test/driver dependency |
+| escape-html | 1.0.3 | MIT | test/driver dependency |
+| fresh | 0.5.2 | MIT | test/driver dependency |
+| http-assert | 1.5.0 | MIT | test/driver dependency |
+| http-assert/node_modules/depd | 1.1.2 | MIT | test/driver dependency |
+| http-assert/node_modules/http-errors | 1.8.1 | MIT | test/driver dependency |
+| http-assert/node_modules/statuses | 1.5.0 | MIT | test/driver dependency |
+| http-errors | 2.0.1 | MIT | test/driver dependency |
+| inherits | 2.0.4 | ISC | test/driver dependency |
+| isomorphic.js | 0.2.5 | MIT | runtime |
 | jose | 6.2.17 | MIT | runtime |
+| keygrip | 1.1.0 | MIT | test/driver dependency |
+| koa | 3.3.0 | MIT | test/driver dependency |
+| koa-compose | 4.1.0 | MIT | test/driver dependency |
+| lib0 | 0.2.120 | MIT | runtime |
+| media-typer | 1.1.1 | MIT | test/driver dependency |
+| mime-db | 1.54.0 | MIT | test/driver dependency |
+| mime-types | 3.0.2 | MIT | test/driver dependency |
+| ms | 2.1.3 | MIT | test/driver dependency |
+| negotiator | 0.6.3 | MIT | test/driver dependency |
+| oauth4webapi | 3.8.8 | MIT | runtime |
+| oidc-provider | 9.13.3 | MIT | test/driver dependency |
+| on-finished | 2.4.2 | MIT | test/driver dependency |
+| openid-client | 6.8.9 | MIT | runtime |
+| parseurl | 1.3.3 | MIT | test/driver dependency |
 | pg | 8.23.1 | MIT | test/driver dependency |
 | pg-cloudflare | 1.4.1 | MIT | test/driver dependency |
 | pg-connection-string | 2.14.1 | MIT | test/driver dependency |
@@ -31,9 +64,18 @@ OpenDoc's original code uses the repository MIT license. Third-party packages re
 | postgres-bytea | 1.0.1 | MIT | test/driver dependency |
 | postgres-date | 1.0.7 | MIT | test/driver dependency |
 | postgres-interval | 1.2.0 | MIT | test/driver dependency |
+| setprototypeof | 1.2.0 | ISC | test/driver dependency |
 | split2 | 4.2.0 | ISC | test/driver dependency |
+| statuses | 2.0.2 | MIT | test/driver dependency |
+| toidentifier | 1.0.1 | MIT | test/driver dependency |
+| tsscmp | 1.0.6 | MIT | test/driver dependency |
+| type-is | 2.1.0 | MIT | test/driver dependency |
+| type-is/node_modules/content-type | 2.1.0 | MIT | test/driver dependency |
+| vary | 1.1.2 | MIT | test/driver dependency |
+| ws | 8.22.2 | MIT | runtime |
 | xtend | 4.0.2 | MIT | test/driver dependency |
+| yjs | 13.6.33 | MIT | runtime |
 
 Versions, integrity hashes and resolved URLs are recorded in [`package-lock.json`](../package-lock.json). The lockfile is authoritative if this table changes. Node.js itself has its own distribution notices.
 
-Sources: [Yjs](https://github.com/yjs/yjs), [ws](https://github.com/websockets/ws), [jose](https://github.com/panva/jose), [node-postgres](https://github.com/brianc/node-postgres), and each installed package's license file. A registry audit with no reported advisories is only a point-in-time registry result; it does not prove the dependencies or application are free of vulnerabilities.
+Sources: [openid-client](https://github.com/panva/openid-client), [oidc-provider](https://github.com/panva/node-oidc-provider), [Yjs](https://github.com/yjs/yjs), [ws](https://github.com/websockets/ws), [jose](https://github.com/panva/jose), [node-postgres](https://github.com/brianc/node-postgres), and each installed package's license file. A registry audit with no reported advisories is only a point-in-time registry result; it does not prove the dependencies or application are free of vulnerabilities.

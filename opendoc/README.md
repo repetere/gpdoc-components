@@ -2,13 +2,13 @@
 
 An original, MIT-licensed foundation for portable document services in `gpdoc-components`.
 
-**v0.3 is an experimental foundation, not a production collaborative editor.** It implements a text-document API, tenant/role boundaries, revision checks, signed deployment profiles, PostgreSQL storage, strict access-token validation and authenticated Yjs collaboration rooms. It does not include a full GPDoc web application or extension.
+**v0.4 is an experimental foundation, not a production collaborative editor.** It implements a text-document API, tenant/role boundaries, revision checks, signed deployment profiles, PostgreSQL storage, strict access-token validation authenticated Yjs collaboration rooms, and an OIDC browser-login adapter with server-owned account mappings. It does not include a full GPDoc web application or extension.
 
-[OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md)
+[OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md) · [Browser login](docs/browser-login.md) · [Accounts](docs/accounts.md)
 
 ## Run locally
 
-Requires Node.js 22 or newer. Install the pinned dependencies before running the complete test suite. The simple memory demo itself still uses only the Node standard library. The access-token adapter uses `jose`, collaboration uses `ws` and `yjs`, and PostgreSQL integration tests use `pg`. See [dependency boundaries](docs/dependencies.md).
+Requires Node.js 22 or newer. Install the pinned dependencies before running the complete test suite. The simple memory demo itself still uses only the Node standard library. The access-token adapter uses `jose`, collaboration uses `ws` and `yjs`, browser login uses `openid-client`, and PostgreSQL integration tests use `pg`. The isolated identity-provider fixture uses `oidc-provider` only as a development/test dependency. See [dependency boundaries](docs/dependencies.md).
 
 ```sh
 git clone https://github.com/repetere/gpdoc-components.git
@@ -51,13 +51,15 @@ The update returns ETag `"2"`. Reusing `"1"` returns `412`; read the current ver
 - PostgreSQL document storage with explicit versioned schema initialization, durable revisions, transactional quotas and cross-connection conditional writes. See [database setup and real integration tests](docs/postgres.md).
 - Strict RS256 `at+jwt` access-token validation against operator-pinned local JWKS, with issuer/audience/time checks and a separate trusted membership resolver. See [authentication boundaries](docs/authentication.md).
 - Experimental authenticated WebSocket/Yjs rooms with server-owned tenant/role checks, commit-before-broadcast PostgreSQL snapshots, reconnect/replay and revocation checks. See [protocol, setup and limitations](docs/collaboration.md).
+- Browser authorization-code login with PKCE, state/nonce checks, opaque HttpOnly sessions, CSRF protection and room-bound WebSocket tickets. See [browser-login scope and setup](docs/browser-login.md).
+- Explicit PostgreSQL identity-to-principal bindings and tenant memberships, with administrative provisioning and no automatic email linking or account enrollment. See [account mapping](docs/accounts.md).
 - Exact origin allowlist, authentication independent of CORS, bounded JSON input and sanitized failures.
 - Real local HTTP adapter and randomly generated development credentials.
 - Closed-schema deployment profile validation and Ed25519 compact-JWS verification with administrator-supplied public keys, deployment binding, expiration and a caller-managed generation floor.
 
 The API never renders document HTML, executes document instructions or fetches linked content. Profiles are metadata, not credentials or permission grants. The profile verifier is a standalone library; the demo does not consume a profile or implement client enrollment.
 
-The default demo remains memory-only with a temporary token. It does not automatically connect to PostgreSQL, create schemas, fetch identity keys or sign anyone in. The adapters, including the separate collaboration listener, are explicit imports for a host application; they do not turn the default demo into a production server.
+The default demo remains memory-only with a temporary token. It does not automatically connect to PostgreSQL, create schemas, fetch identity keys or sign anyone in. The adapters, including browser login and the separate collaboration listener, are explicit imports for a host application; they do not turn the default demo into a production server.
 
 ## Integration ports
 
@@ -84,8 +86,8 @@ See [the design](docs/design.md) for routes, statuses and decisions, and [specs]
 
 ## What remains
 
-- Complete enterprise OIDC/Ping login, provider-specific interoperability, live key rotation/revocation and tenant membership administration. The new validator supports a strict RFC 9068-style token profile, not every provider’s default token format.
-- Production PostgreSQL operations and upgrades, persistent ACL/membership management, object-storage adapters and backup/restore validation.
+- Production Ping/Entra/Google interoperability, deployment-specific issuer/client registration and key rotation/revocation tests, federated logout, persistent/distributed browser sessions and membership administration UI. Browser login is tested against an isolated standards-based provider; this is not certification of every provider or deployment. The separate bearer adapter still requires its strict RFC 9068-style token profile.
+- Production PostgreSQL operations and upgrades, document ACL management, object-storage adapters and backup/restore validation.
 - Document-specific sharing, public-link policy, audit export, collaboration across server instances and a deliberate REST-to-Yjs document model. The experimental rooms are not automatically synchronized with REST documents.
 - Configurable web and rebrandable extension clients with managed enrollment.
 - Executable cloud infrastructure and provider integration tests.

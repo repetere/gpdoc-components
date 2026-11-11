@@ -1,5 +1,6 @@
 // Original experimental OpenDoc transport. MIT. Not y-websocket compatible.
 import { createServer } from 'node:http';
+import { randomBytes } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { MAX_COLLABORATION_UPDATE_BYTES, MAX_COLLABORATION_STATE_BYTES } from './collaboration-state.mjs';
 
@@ -52,7 +53,8 @@ function stateFrame(value, allowMissing = true) {
 /**
  * Attach ONLY to an explicitly provided HTTP(S) server. The caller owns TLS,
  * proxy trust, durable storage, room membership policy and HTTP request handling.
- * authenticate receives a clean Request with only the first-frame Bearer token.
+ * authenticate receives a clean Request with only the first-frame Bearer token,
+ * plus frozen {connectionId}: a stable, random server-owned ID for this socket.
  * It MUST verify credentials and consult current trusted tenant membership on
  * every call. A verified tenant role grants all rooms in that tenant in v1.
  */
@@ -119,7 +121,7 @@ export function attachCollaborationServer({ server, store, authenticate, allowed
     const request = new Request(`http://opendoc.invalid/api/v1/collaboration/${client.roomId}`, {
       headers: { authorization: `Bearer ${client.token}`, ...(client.origin ? { origin: client.origin } : {}) }
     });
-    const identity = await dependency(() => authenticate(request));
+    const identity = await dependency(() => authenticate(request, client.authContext));
     if (client.closed || !validIdentity(identity) || (client.identity &&
       (identity.tenantId !== client.identity.tenantId || identity.principalId !== client.identity.principalId))) throw new TransportError('UNAUTHENTICATED');
     client.identity = { principalId: identity.principalId, tenantId: identity.tenantId, role: identity.role };
@@ -226,7 +228,7 @@ export function attachCollaborationServer({ server, store, authenticate, allowed
     });
   }
   function accept(ws, request, roomId, origin) {
-    const client = { ws, roomId, origin, token: null, identity: null, authenticated: false, closed: false, pending: 0, tail: Promise.resolve(), room: null };
+    const client = { authContext: Object.freeze({ connectionId: randomBytes(32).toString('base64url') }), ws, roomId, origin, token: null, identity: null, authenticated: false, closed: false, pending: 0, tail: Promise.resolve(), room: null };
     clients.add(client);
     client.authenticationTimer = setTimeout(() => stop(client, 1008, 'Authentication required.'), config.authenticationTimeoutMs);
     client.authenticationTimer.unref();

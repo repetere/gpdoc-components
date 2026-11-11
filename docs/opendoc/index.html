@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="OpenDoc v0.3: an original MIT-licensed foundation for cloud-neutral document services. Run the local reference API and explore the deployment roadmap.">
+  <meta name="description" content="OpenDoc v0.4: an original MIT-licensed foundation for cloud-neutral document services. Run the local reference API and explore the deployment roadmap.">
   <meta name="theme-color" content="#faf9f6">
   <title>OpenDoc · An open foundation for document services</title>
   <link rel="stylesheet" href="../style.css">
@@ -25,15 +25,15 @@
   <main id="main">
     <section class="opendoc-hero page-width" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <div class="eyebrow">OPEN SOURCE · CLOUD-NEUTRAL · V0.3</div>
+        <div class="eyebrow">OPEN SOURCE · CLOUD-NEUTRAL · V0.4</div>
         <h1 id="hero-title">An open foundation<br>for <em>documents.</em></h1>
         <p class="lead">Start with a small, inspectable document service. Build toward an experience you can host, extend, and make your own.</p>
-        <p class="hero-detail">OpenDoc is an original MIT-licensed foundation: a local reference API, PostgreSQL storage, strict access-token validation, signed deployment profiles, and experimental Yjs collaboration.</p>
+        <p class="hero-detail">OpenDoc is an original MIT-licensed foundation: a local reference API, PostgreSQL storage, strict access-token validation, signed deployment profiles, experimental Yjs collaboration, and a browser sign-in foundation.</p>
         <div class="actions">
           <a class="primary" href="#quickstart">Run it locally <span aria-hidden="true">↓</span></a>
           <a href="https://github.com/repetere/gpdoc-components/tree/main/opendoc">Explore the source <span aria-hidden="true">→</span></a>
         </div>
-        <p class="release-note"><span class="status-dot" aria-hidden="true"></span> v0.3 foundation <span class="release-divider" aria-hidden="true">/</span> Local prototype, not production-ready</p>
+        <p class="release-note"><span class="status-dot" aria-hidden="true"></span> v0.4 foundation <span class="release-divider" aria-hidden="true">/</span> Local prototype, not production-ready</p>
       </div>
       <figure class="blueprint" aria-labelledby="blueprint-caption">
         <div class="blueprint-heading"><span>THE BUILDING BLOCKS</span><span aria-hidden="true">01 / 03</span></div>
@@ -54,7 +54,7 @@
           <div><h2>Your infrastructure</h2><p>AWS · GCP · Azure · open-source stack</p></div>
           <span class="tag planned">PLANNED</span>
         </div>
-        <figcaption id="blueprint-caption">Architecture direction. The v0.3 reference runs locally; production clients and cloud adapters are not implemented.</figcaption>
+        <figcaption id="blueprint-caption">Architecture direction. The v0.4 reference runs locally; production clients and cloud adapters are not implemented.</figcaption>
       </figure>
     </section>
 
@@ -65,7 +65,7 @@
       </div>
       <div class="status-columns">
         <article class="status-panel current">
-          <div class="panel-heading"><span class="tag available">AVAILABLE IN V0.3</span><span aria-hidden="true">●</span></div>
+          <div class="panel-heading"><span class="tag available">AVAILABLE IN V0.4</span><span aria-hidden="true">●</span></div>
           <h3>Local and adapter foundation</h3>
           <ul>
             <li>Authenticated local document API with tenant and role checks.</li>
@@ -75,15 +75,16 @@
             <li>PostgreSQL storage with transactional revision checks.</li>
             <li>Pinned-key RS256 access-token validation and server-owned membership.</li>
             <li>Experimental authenticated WebSocket/Yjs rooms with durable PostgreSQL snapshots.</li>
+            <li>Browser OIDC login, protected sessions, and server-owned account mapping.</li>
             <li>Node.js 22+ with pinned adapter dependencies.</li>
           </ul>
-          <p class="panel-note">Demo authentication uses a local temporary token. It is not enterprise OIDC login. The separate collaboration adapter is experimental and does not upgrade the memory demo or provide a full editor.</p>
+          <p class="panel-note">Demo authentication uses a local temporary token. It is not enterprise OIDC login. The separate browser-login adapter uses a synthetic provider for tests and single-process memory sessions. Collaboration is experimental; neither adapter upgrades the memory demo or provides a full editor.</p>
         </article>
         <article class="status-panel future">
           <div class="panel-heading"><span class="tag planned">PLANNED / NOT IMPLEMENTED</span><span aria-hidden="true">○</span></div>
           <h3>The production path</h3>
           <ul>
-            <li>Cross-instance collaboration, full editor integration, and enterprise OIDC login.</li>
+            <li>Production identity-provider validation, cross-instance collaboration, and full editor integration.</li>
             <li>Production database operations and S3 / GCS / Blob storage adapters.</li>
             <li>Cloud infrastructure as code and tested deployment recipes.</li>
             <li>Rebrandable full web and VS Code clients.</li>
@@ -123,12 +124,12 @@ npm run demo</code></pre>
         <p>The core defines document operations and their boundaries. Production identity, persistence, and collaboration belong behind explicit interfaces.</p>
       </div>
       <ol class="architecture-list">
-        <li><span class="architecture-number" aria-hidden="true">01</span><div><h3>Authenticate, then authorize</h3><p>Tenant and role checks belong at the service boundary. The default demo uses a temporary token. The optional validator checks signed access tokens against pinned keys; complete enterprise OIDC login remains planned.</p></div><span class="architecture-label">IDENTITY</span></li>
+        <li><span class="architecture-number" aria-hidden="true">01</span><div><h3>Authenticate, then authorize</h3><p>Tenant and role checks belong at the service boundary. The default demo uses a temporary token. The optional validator checks signed access tokens against pinned keys; the separate browser-login adapter uses authorization code and PKCE. Production provider validation remains planned.</p></div><span class="architecture-label">IDENTITY</span></li>
         <li><span class="architecture-number" aria-hidden="true">02</span><div><h3>Make revisions explicit</h3><p>A stale revision must produce a conflict rather than silently replace newer content. This request model stays separate from the experimental Yjs rooms; no automatic conversion or dual writing is claimed.</p></div><span class="architecture-label">DOCUMENTS</span></li>
         <li><span class="architecture-number" aria-hidden="true">03</span><div><h3>Verify the deployment profile</h3><p>Check signed profile data before relying on its configuration. Signature verification is one building block, not proof of a secure or successful deployment.</p></div><span class="architecture-label">CONFIGURATION</span></li>
         <li><span class="architecture-number" aria-hidden="true">04</span><div><h3>Connect production services</h3><p>The PostgreSQL adapter now provides transactional document storage. Cloud object stores, hosted deployment and production operations still require implementation and validation.</p></div><span class="architecture-label">ADAPTERS</span></li>
       </ol>
-      <p class="architecture-docs">Read the <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/design.md">architecture and API contract</a>, the <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/profile.md">deployment-profile trust model</a>, <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/postgres.md">PostgreSQL setup</a>, <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/authentication.md">authentication boundaries</a>, or the <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/collaboration.md">experimental collaboration protocol</a>.</p>
+      <p class="architecture-docs">Read the <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/design.md">architecture and API contract</a>, the <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/profile.md">deployment-profile trust model</a>, <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/postgres.md">PostgreSQL setup</a>, <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/authentication.md">authentication boundaries</a>, the <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/collaboration.md">experimental collaboration protocol</a>, or <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/browser-login.md">browser-login setup</a>.</p>
       <p class="format-link">Working with the files themselves? The existing <a href="../#format">GPDoc Markdown reference</a> covers portable document identity and review metadata. OpenDoc adds a separate service foundation.</p>
     </section>
 
@@ -159,7 +160,7 @@ npm run demo</code></pre>
     </section>
 
     <section class="roadmap-section page-width" id="roadmap" aria-labelledby="roadmap-title">
-      <div class="roadmap-intro"><div class="eyebrow">05 / BUILD IN THE OPEN</div><h2 id="roadmap-title">Read it. Run it.<br>Help shape what comes next.</h2><p>The next steps are concrete: full enterprise login, object-storage adapters, cross-instance collaboration, deployable clients, and repeatable cloud validation.</p></div>
+      <div class="roadmap-intro"><div class="eyebrow">05 / BUILD IN THE OPEN</div><h2 id="roadmap-title">Read it. Run it.<br>Help shape what comes next.</h2><p>The next steps are concrete: production identity-provider validation, object-storage adapters, cross-instance collaboration, deployable clients, and repeatable cloud validation.</p></div>
       <div class="resource-links">
         <a href="https://github.com/repetere/gpdoc-components/tree/main/opendoc"><span><strong>OpenDoc source</strong><small>Implementation, interfaces, and conformance tests</small></span><span aria-hidden="true">→</span></a>
         <a href="https://github.com/repetere/gpdoc-components/issues"><span><strong>Discuss the roadmap</strong><small>Propose an adapter, report an issue, or clarify a contract</small></span><span aria-hidden="true">→</span></a>

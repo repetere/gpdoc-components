@@ -101,7 +101,7 @@ class OpenDocPageTests(unittest.TestCase):
 
     def test_working_and_planned_capabilities_are_explicit(self):
         for statement in (
-            'AVAILABLE IN V0.3',
+            'AVAILABLE IN V0.4',
             'tenant and role checks',
             'Revision conflict handling',
             'Signed deployment-profile verification',
@@ -109,9 +109,11 @@ class OpenDocPageTests(unittest.TestCase):
             'PostgreSQL storage with transactional revision checks',
             'Pinned-key RS256 access-token validation and server-owned membership',
             'PLANNED / NOT IMPLEMENTED',
-            'Cross-instance collaboration, full editor integration, and enterprise OIDC login',
+            'Production identity-provider validation, cross-instance collaboration, and full editor integration',
             'Experimental authenticated WebSocket/Yjs rooms with durable PostgreSQL snapshots',
-            'separate collaboration adapter is experimental',
+            'Collaboration is experimental',
+            'synthetic provider for tests and single-process memory sessions',
+            'Browser OIDC login, protected sessions, and server-owned account mapping',
             'Production database operations and S3 / GCS / Blob storage adapters',
             'Cloud infrastructure as code',
             'Rebrandable full web and VS Code clients',
