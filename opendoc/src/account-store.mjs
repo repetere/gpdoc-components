@@ -8,7 +8,7 @@ export const ACCOUNT_SCHEMA_VERSION = 1;
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}(?![\s\S])/;
 const TENANT_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}(?![\s\S])/;
 const ROLES = new Set(['owner', 'editor', 'viewer', 'commenter']);
-const SAFE_CODES = new Set(['BAD_REQUEST', 'CONFLICT', 'NOT_FOUND', 'CAPACITY_EXCEEDED', 'DEPENDENCY_UNAVAILABLE']);
+const SAFE_CODES = new Set(['BAD_REQUEST', 'FORBIDDEN', 'CONFLICT', 'NOT_FOUND', 'CAPACITY_EXCEEDED', 'DEPENDENCY_UNAVAILABLE']);
 function fail(code) { throw new StoreError(code); }
 function sanitized(error) {
   return new StoreError(error instanceof StoreError && SAFE_CODES.has(error.code) ? error.code : 'DEPENDENCY_UNAVAILABLE');
@@ -57,6 +57,63 @@ function identity(issuer, subject) {
 }
 function sameBytes(actual, expected) { return actual instanceof Uint8Array && Buffer.from(actual).equals(expected); }
 function rowCount(rows) { if (!Array.isArray(rows) || rows.length > 1) fail('DEPENDENCY_UNAVAILABLE'); }
+
+async function accountState(client, sqlSchema, write = false) {
+  const { rows } = await client.query(`SELECT schema_version, max_principals, max_identity_bindings,
+    max_memberships, max_memberships_per_tenant, max_bytes, principal_count, identity_binding_count,
+    membership_count, byte_count FROM ${sqlSchema}.account_state WHERE singleton = true${write ? ' FOR UPDATE' : ' FOR SHARE'}`);
+  if (rows.length !== 1 || integer(rows[0].schema_version, 1) !== ACCOUNT_SCHEMA_VERSION) fail('DEPENDENCY_UNAVAILABLE');
+  const r = rows[0], state = {
+    maxPrincipals: integer(r.max_principals, 1, 1000000), maxIdentityBindings: integer(r.max_identity_bindings, 1, 1000000),
+    maxMemberships: integer(r.max_memberships, 1, 1000000), maxMembershipsPerTenant: integer(r.max_memberships_per_tenant, 1, 10000),
+    maxBytes: integer(r.max_bytes, 1), principals: integer(r.principal_count), bindings: integer(r.identity_binding_count),
+    memberships: integer(r.membership_count), bytes: integer(r.byte_count)
+  };
+  if (state.principals > state.maxPrincipals || state.bindings > state.maxIdentityBindings ||
+      state.memberships > state.maxMemberships || state.bytes > state.maxBytes) fail('DEPENDENCY_UNAVAILABLE');
+  return state;
+}
+
+/** Internal live-store integration, not credential verification or a transaction.
+ * The caller MUST supply its own READ COMMITTED transaction client and retain
+ * the account lock through its mutation's commit/rollback. Acquire this lock
+ * before any live-document lock. No pool, callbacks, retries or fallback exist.
+ */
+export function createPostgresAccountWriteGuard({ schema } = {}) {
+  const sqlSchema = schemaIdentifier(schema);
+  function snapshot(tenantId, actor) {
+    try {
+      if (!actor || Object.getPrototypeOf(actor) !== Object.prototype || Reflect.ownKeys(actor).length !== 2) fail('FORBIDDEN');
+      const principalField = Object.getOwnPropertyDescriptor(actor, 'principalId');
+      const tenantField = Object.getOwnPropertyDescriptor(actor, 'tenantId');
+      if (!principalField || !tenantField || !Object.hasOwn(principalField, 'value') || !Object.hasOwn(tenantField, 'value') ||
+          typeof principalField.value !== 'string' || !ID.test(principalField.value) ||
+          typeof tenantField.value !== 'string' || !TENANT_ID.test(tenantField.value) || tenantField.value !== tenantId) fail('FORBIDDEN');
+      return Object.freeze({ principalId: principalField.value, tenantId: tenantField.value });
+    } catch { fail('FORBIDDEN'); }
+  }
+  return Object.freeze({
+    snapshot,
+    async authorize(client, actor) {
+      try {
+        // Recheck the snapshot shape without evaluating caller accessors.
+        const tenantField = actor && Object.getOwnPropertyDescriptor(actor, 'tenantId');
+        const trusted = snapshot(tenantField?.value, actor);
+        await accountState(client, sqlSchema);
+        // A separate statement gets a fresh snapshot AFTER any pending account
+        // administrator holding the exclusive state-row lock has settled.
+        const { rows } = await client.query(`SELECT p.principal_id, m.tenant_id, m.role FROM ${sqlSchema}.principals p
+          JOIN ${sqlSchema}.memberships m ON m.principal_id = p.principal_id AND m.tenant_id = $1
+          WHERE p.principal_id = $2 AND p.active = true`, [trusted.tenantId, trusted.principalId]);
+        rowCount(rows);
+        if (!rows.length) fail('FORBIDDEN');
+        const r = rows[0];
+        if (r.principal_id !== trusted.principalId || r.tenant_id !== trusted.tenantId || !ROLES.has(r.role)) fail('DEPENDENCY_UNAVAILABLE');
+        if (r.role !== 'owner' && r.role !== 'editor') fail('FORBIDDEN');
+      } catch (error) { throw sanitized(error); }
+    }
+  });
+}
 
 async function connection(pool, work) {
   let client, inTransaction = false, discard = false;
@@ -122,19 +179,7 @@ export class PostgresAccountStore {
     this.#schema = schemaIdentifier(schema);
   }
   async #state(client, write = false) {
-    const { rows } = await client.query(`SELECT schema_version, max_principals, max_identity_bindings,
-      max_memberships, max_memberships_per_tenant, max_bytes, principal_count, identity_binding_count,
-      membership_count, byte_count FROM ${this.#schema}.account_state WHERE singleton = true${write ? ' FOR UPDATE' : ' FOR SHARE'}`);
-    if (rows.length !== 1 || integer(rows[0].schema_version, 1) !== ACCOUNT_SCHEMA_VERSION) fail('DEPENDENCY_UNAVAILABLE');
-    const r = rows[0], state = {
-      maxPrincipals: integer(r.max_principals, 1, 1000000), maxIdentityBindings: integer(r.max_identity_bindings, 1, 1000000),
-      maxMemberships: integer(r.max_memberships, 1, 1000000), maxMembershipsPerTenant: integer(r.max_memberships_per_tenant, 1, 10000),
-      maxBytes: integer(r.max_bytes, 1), principals: integer(r.principal_count), bindings: integer(r.identity_binding_count),
-      memberships: integer(r.membership_count), bytes: integer(r.byte_count)
-    };
-    if (state.principals > state.maxPrincipals || state.bindings > state.maxIdentityBindings ||
-        state.memberships > state.maxMemberships || state.bytes > state.maxBytes) fail('DEPENDENCY_UNAVAILABLE');
-    return state;
+    return accountState(client, this.#schema, write);
   }
   #reserve(state, kind, limit, deltaBytes) {
     if ((kind && state[kind] >= state[limit]) || deltaBytes > state.maxBytes - state.bytes) fail('CAPACITY_EXCEEDED');

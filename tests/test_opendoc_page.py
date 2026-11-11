@@ -101,11 +101,14 @@ class OpenDocPageTests(unittest.TestCase):
 
     def test_working_and_planned_capabilities_are_explicit(self):
         for statement in (
-            'AVAILABLE IN V0.8',
+            'AVAILABLE IN V0.9',
             'Automatic live-ticket renewal and bounded reconnect',
             'not a durable offline queue',
             'Opt-in cross-instance live synchronization through one shared PostgreSQL primary',
             'database failover and multi-primary safety are not provided',
+            'Optional transaction-bound live write authorization and restart-persistent history checks',
+            'Guarded history requires a fresh schema and can quarantine the entire namespace',
+            'cannot detect a whole database restored or cloned with its checkpoints',
             'tenant and role checks',
             'Revision conflict handling',
             'Signed deployment-profile verification',

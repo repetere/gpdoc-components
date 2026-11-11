@@ -114,6 +114,23 @@ lease, database failover fencing, multi-primary protocol or recovery-epoch
 negotiation. Operator-controlled database failover/restore requires a separate
 design and evidence before enabling production failover.
 
+## Optional guarded local persistence
+
+The [guarded live storage guide](guarded-live-storage.md) provides opt-in
+transaction-bound account membership checks and a fresh guarded schema with a
+pinned authority identifier, durable checkpoints and namespace-wide quarantine.
+Authentication, account administration and live writes must share the documented
+fixed database and lock protocol. Account locks can delay revocation behind an
+already-authorized write; guarded reads serialize and increase contention.
+
+The history option requires an explicitly initialized fresh schema. Older
+binaries reject it; no implicit migration, history adoption or quarantine reset
+is implemented. One detected document inconsistency blocks the entire namespace,
+including other tenants. Recovery remains an operator-owned design and review.
+A database restored or cloned together with its checkpoints and authority ID
+cannot be distinguished by this database-local guard. It is not HA, failover
+fencing, independent backup validation or proof of recovery readiness.
+
 ## Required acceptance before calling a target ready
 
 1. Build reproducible images and migrations from the released sources with provenance and license inventory.

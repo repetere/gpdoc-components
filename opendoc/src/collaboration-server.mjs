@@ -301,14 +301,17 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
       client.sequence = sequence;
     }
     await inRoom(client, async room => {
-      await authorize(client, true);
+      const identity = await authorize(client, true);
+      const actor = client.live ? Object.freeze({ principalId: identity.principalId, tenantId: identity.tenantId }) : undefined;
       const resync = () => {
         // A late/ambiguous commit must not leave connected readers silently stale.
         requireResync(room);
       };
       let frame, result;
       try {
-        result = await dependency(() => client.store.applyUpdate(client.identity.tenantId, client.roomId, new Uint8Array(bytes.subarray(offset))), {
+        result = await dependency(() => client.live
+          ? client.store.applyUpdate(identity.tenantId, client.roomId, new Uint8Array(bytes.subarray(offset)), actor)
+          : client.store.applyUpdate(identity.tenantId, client.roomId, new Uint8Array(bytes.subarray(offset))), {
           fence: true, onTimeout: resync
         });
         // An invalid result may follow a successful commit too.
@@ -316,7 +319,8 @@ export function attachCollaborationServer({ server, store, liveStore, authentica
       } catch (error) {
         // These narrow store outcomes guarantee rejection/rollback. All other
         // failures (including a lost COMMIT response) have an uncertain outcome.
-        if (!['BAD_REQUEST', 'TOO_LARGE', 'CAPACITY_EXCEEDED', 'NOT_FOUND'].includes(error?.code)) resync();
+        if (!['BAD_REQUEST', 'TOO_LARGE', 'CAPACITY_EXCEEDED', 'NOT_FOUND'].includes(error?.code) &&
+            !(client.live && error?.code === 'FORBIDDEN')) resync();
         throw error;
       }
       // Never send an uncommitted update. Every receiver is independently

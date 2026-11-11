@@ -12,6 +12,8 @@ The optional [collaboration adapter](collaboration.md) serves separate Yjs rooms
 
 The optional [browser-login adapter](browser-login.md) handles authorization-code login with PKCE and keeps provider tokens server-side. Opaque browser sessions resolve server-owned [account mappings](accounts.md), and its REST wrapper adds CSRF checks. Short-lived room-bound tickets bridge browser sessions to the existing collaboration protocol without exposing provider tokens. This is a separate explicit host integration; the original temporary-token demo is unchanged. Optional [shared auth state](shared-sessions.md) coordinates browser transactions, sessions and tickets in PostgreSQL. It does not make collaboration fan-out multi-instance or establish a production HA deployment. The original [web client](web-client.md) edits revision-checked REST text documents. The opt-in [live editor](live-editor.md) edits a separate [live document collection](live-documents.md), whose Yjs state is authoritative. Optional [shared live synchronization](shared-collaboration.md) periodically propagates committed revisions between servers using the same fixed PostgreSQL primary and schema; it is not a distributed leader or multi-primary protocol. Snapshot replacement is not supported for live documents, and no automatic conversion or dual writing links the two collections.
 
+Optional [guarded live storage](guarded-live-storage.md) adds account membership fencing to live creation/updates and restart-persistent integrity checks in a fresh schema. These options do not change legacy stores, synchronize session logout with database writes, or detect restoring/cloning an entire database with its checkpoints.
+
 ## API contract
 
 - `GET /healthz`: process liveness, no user information.
@@ -40,7 +42,7 @@ Production work remains: production OIDC provider and desktop-login validation, 
 | Runtime | Standard Request/Response core and Node adapter | Keeps the HTTP platform separate from document/auth ports. |
 | Persistence | Default memory demo; explicit PostgreSQL adapter | Keeps evaluation safe while testing SQL durability and atomic writes separately. |
 | Identity | Temporary demo credentials; optional bearer validator and OIDC browser-session adapter | Test a standard local identity provider and explicit account mapping without claiming production provider interoperability. |
-| Live editing | Experimental, separate authenticated Yjs rooms | PostgreSQL merges commit before broadcast; one listener provides live fan-out. Cross-instance delivery and full editor integration remain unimplemented. |
+| Live editing | Experimental, separate authenticated Yjs rooms | PostgreSQL merges commit before broadcast; an opt-in live text editor and shared-primary polling are available. Guarded storage is explicit; rich text, production scaling and database failover remain unimplemented. |
 
 ## Traceability
 

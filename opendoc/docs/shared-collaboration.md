@@ -75,13 +75,16 @@ revision. When a full state is returned, the transport rejects a lower revision
 or different bytes for an already observed revision. This is an observed-history
 sanity check, not failover or fork detection.
 
-Observed-history checks apply only during an active room's lifetime. Retiring
+The default transport-only observed-history checks apply only during an active room's lifetime. Retiring
 that room or restarting the process discards its floor; reconnect can establish
 a different baseline. Closing code 1011 is not permanent quarantine, rollback
 detection across reconnects, or authorization to restore data. Operators must
 stop clients and processes and validate the authority before restoring or
-changing history. Persistent authority epochs and recovery fencing are future
-work; this mode must not be used as a substitute for them.
+changing history. The optional [guarded live schema](guarded-live-storage.md) separately persists
+transactional document checkpoints and namespace quarantine across restarts. It
+still cannot detect a whole database restored or cloned with those checkpoints.
+Independent authority epochs and recovery fencing remain future work; shared
+polling and guarded storage must not be used as substitutes for them.
 
 ## Ordering, acknowledgements and authorization
 
@@ -115,14 +118,17 @@ update. A later attempted write is checked against the current role and denied
 if it is no longer permitted. Unchanged polls emit no data; the existing idle
 reauthorization timer continues to check otherwise idle sockets.
 
-Revocation is not atomic cancellation of an in-flight document write. Access is
+Without the optional account write guard, revocation is not atomic cancellation
+of an in-flight document write. Access is
 checked before submitting the mutation and again before sending state or its ACK,
 but membership and document commits are not one transaction. A write already
 authorized and submitted can still commit if access is revoked while storage is
 pending; other authorized readers may receive that committed change. The revoked
 socket receives no new protected output after the next access check denies it.
-Applications requiring revocation to cancel admitted writes need an additional
-transactional authorization/fencing design, not just this polling option.
+The optional [account write guard](guarded-live-storage.md) instead holds the
+current membership fence through the live commit. It orders successful writes
+and revocations, rather than canceling every pending write: an already-fenced
+write can finish before a waiting revocation. Polling alone does not enable it.
 
 ## Bounded polling and lifecycle
 
@@ -173,7 +179,8 @@ same shared quota-row transaction fence as `get`:
 - Return a validated complete document when its revision is newer.
 - Reject a missing document, lower revision, corrupt record or dependency error.
 
-The unchanged fast path does not allocate a Yjs worker. Changed records receive
+The unchanged fast path does not allocate a Yjs worker. A configured guarded
+schema still verifies its durable digest and quarantine state on every poll. Changed records receive
 the same bounded isolated decoding and projection consistency checks as full
 reads. The transport treats a `null` response below its room's maximum observed
 revision as a regression too. This method is a trusted internal store operation,
