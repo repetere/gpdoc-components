@@ -1,8 +1,9 @@
-// Original OpenDoc browser BFF reference. MIT. Single process, bounded memory.
+// Original OpenDoc browser BFF reference. MIT. Bounded memory or shared durable state.
 // Protocol validation and ID-token signature verification use openid-client.
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import * as oidc from 'openid-client';
 import { createOpenDocHandler } from './api.mjs';
+import { BrowserAuthStateError, MemoryBrowserAuthState } from './browser-auth-state.mjs';
 
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}(?![\s\S])/;
 const TENANT = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}(?![\s\S])/;
@@ -85,7 +86,7 @@ function response(body, status = 200, cookies = [], location) {
   return new Response(body === null ? null : JSON.stringify(body), { status, headers });
 }
 function failure(error, cookies = []) {
-  const code = error instanceof BrowserError ? error.code : 'DEPENDENCY_UNAVAILABLE';
+  const code = error instanceof BrowserError || error instanceof BrowserAuthStateError ? error.code : 'DEPENDENCY_UNAVAILABLE';
   const [status, message] = ERRORS[code];
   return response({ error: { code, message } }, status, cookies);
 }
@@ -100,7 +101,7 @@ function failure(error, cookies = []) {
 export function createBrowserOidc({
   issuer, clientId, clientAuthentication, redirectUri, authorizationEndpoint,
   tokenEndpoint, jwksUri, activeTenantId, resolveMembership,
-  allowInsecureLoopback = false, successPath = '/', limits = {}
+  allowInsecureLoopback = false, successPath = '/', limits = {}, authState
 } = {}) {
   if (typeof allowInsecureLoopback !== 'boolean') throw new TypeError('Invalid loopback option');
   const issuerUrl = trustedUrl(issuer, allowInsecureLoopback, 'issuer');
@@ -168,40 +169,34 @@ export function createBrowserOidc({
   const cookie = (name, value, age) => `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.max(0, Math.floor(age / 1000))}${allowInsecureLoopback ? '' : '; Secure'}`;
   const clearTransaction = () => cookie(names.transaction, '', 0);
   const clearSession = () => [cookie(names.session, '', 0), cookie(names.csrf, '', 0)];
-  const sessions = new Map(), transactions = new Map(), tickets = new Map();
-  // At most one owner per admitted login operation; never a persistent cache.
-  const initiations = new Map();
+  const ownsState = authState === undefined;
+  const state = ownsState ? new MemoryBrowserAuthState() : authState;
+  if (!state || typeof state.configure !== 'function' || typeof state.run !== 'function') throw new TypeError('Invalid browser auth state adapter');
+  // A namespace cannot silently reinterpret a session under a different trust
+  // configuration, tenant or lifetime policy. No client secret is persisted.
+  state.configure({ binding: createHash('sha256').update(JSON.stringify({ issuer, clientId,
+    clientAuthentication: clientAuthentication.method, redirectUri, authorizationEndpoint,
+    tokenEndpoint, jwksUri, activeTenantId, allowInsecureLoopback, successPath, config })).digest('hex'), limits: config });
   let pending = 0, stopped = false;
-  function sweep() {
-    const now = Date.now();
-    for (const map of [sessions, transactions, tickets]) for (const [id, value] of map) if (value.expiresAt <= now) map.delete(id);
-  }
-  function cancelTransaction(id) {
-    const transaction = transactions.get(id);
-    if (transaction) transaction.cancelled = true;
-    transactions.delete(id);
-  }
-  function removeSession(id, completingTransaction) {
-    sessions.delete(id);
-    for (const [ticket, value] of tickets) if (value.sessionId === id) tickets.delete(ticket);
-    for (const [transactionId, value] of transactions) {
-      if (value.priorSessionId === id && value !== completingTransaction) cancelTransaction(transactionId);
-    }
+  async function atomic(context, operation, input = {}) {
+    checkContext(context);
+    const result = await state.run(operation, input, () => checkContext(context));
+    checkContext(context);
+    return result;
   }
   // Timed-out work retains its slot until it actually settles. A wedged resolver
   // cannot produce an unbounded chain of detached background promises.
   async function admitted(operation) {
-    sweep();
     if (stopped) fail('DEPENDENCY_UNAVAILABLE');
     if (pending >= config.maxPendingOperations) fail('CAPACITY_EXCEEDED');
     pending++;
-    const context = { expired: false };
+    const context = { expired: false, deadline: Date.now() + config.operationTimeoutMs };
     let timer;
     const work = Promise.resolve().then(() => operation(context)).finally(() => { pending--; });
     const timeout = new Promise((_, reject) => { timer = setTimeout(() => { context.expired = true; reject(new BrowserError('DEPENDENCY_UNAVAILABLE')); }, config.operationTimeoutMs); });
     try { return await Promise.race([work, timeout]); } finally { clearTimeout(timer); }
   }
-  function checkContext(context) { if (context.expired || stopped) fail('DEPENDENCY_UNAVAILABLE'); }
+  function checkContext(context) { if (context.expired || Date.now() >= context.deadline || stopped) fail('DEPENDENCY_UNAVAILABLE'); }
   function requestUrl(request, callback = false) {
     const url = new URL(request.url);
     if (url.origin !== redirect.origin || url.username || url.password || url.hash || url.href.length > 8192 || (!callback && url.search)) fail('BAD_REQUEST');
@@ -225,12 +220,13 @@ export function createBrowserOidc({
     if (request.headers.has('authorization')) return null; // Never mix credentials.
     const cookies = cookieValues(request);
     const id = cookies.get(names.session);
-    const session = OPAQUE.test(id ?? '') ? sessions.get(id) : null;
-    if (!session || session.expiresAt <= Date.now()) return null;
+    const session = OPAQUE.test(id ?? '') ? await atomic(context, 'getSession', { id }) : null;
+    if (!session) return null;
     if (mutation) checkCsrf(request, session, cookies);
     const identity = await membership(session.subject);
     checkContext(context);
-    if (!identity || identity.principalId !== session.principalId || sessions.get(id) !== session || session.expiresAt <= Date.now()) { removeSession(id); return null; }
+    if (!identity || identity.principalId !== session.principalId) { await atomic(context, 'removeSession', { id, version: session.version }); return null; }
+    if (!await atomic(context, 'checkSession', { id, version: session.version })) return null;
     return { identity, session, id };
   }
   async function authenticate(request) {
@@ -241,135 +237,113 @@ export function createBrowserOidc({
     let callbackCleanup = null, initiationCleanup = null;
     try {
       return await admitted(async context => {
-        const raw = new URL(request.url);
-        const url = requestUrl(request, raw.pathname === '/auth/callback');
-        const methods = { '/auth/login': 'POST', '/auth/callback': 'GET', '/auth/session': 'GET', '/auth/logout': 'POST', '/auth/collaboration-ticket': 'POST' };
-        if (!Object.hasOwn(methods, url.pathname)) fail('NOT_FOUND');
-        if (request.method !== methods[url.pathname]) fail('METHOD_NOT_ALLOWED');
-        if (request.headers.has('authorization')) fail('BAD_REQUEST');
-        if (url.pathname === '/auth/login') {
-          checkOrigin(request);
-          if (request.headers.get('x-opendoc-login') !== '1') fail('FORBIDDEN');
-          const cookies = cookieValues(request);
-          const old = cookies.get(names.transaction);
-          const priorSessionId = cookies.get(names.session) ?? null;
-          const priorSession = sessions.get(priorSessionId) ?? null;
-          const intent = {};
-          if (priorSession) {
-            priorSession.loginIntent = intent;
-            for (const [id, transaction] of transactions) if (transaction.priorSessionId === priorSessionId) cancelTransaction(id);
-          }
-          const initiationKey = OPAQUE.test(old ?? '') ? `transaction:${old}` : OPAQUE.test(priorSessionId ?? '') ? `session:${priorSessionId}` : null;
-          if (initiationKey !== null) {
-            initiations.set(initiationKey, intent);
-            initiationCleanup = { key: initiationKey, intent };
-          }
-          const checkInitiation = () => {
-            checkContext(context);
-            if ((initiationKey !== null && initiations.get(initiationKey) !== intent) ||
-              (priorSession && (sessions.get(priorSessionId) !== priorSession || priorSession.expiresAt <= Date.now() || priorSession.loginIntent !== intent))) fail('UNAUTHENTICATED');
-          };
-          // Cancel before awaiting the new body/digest: an older callback must
-          // not finish logging this browser in after a replacement was started.
-          if (old) cancelTransaction(old);
-          const body = await smallJson(request);
-          checkInitiation();
-          if (Object.keys(body).length) fail('BAD_REQUEST');
-          if (transactions.size >= config.maxTransactions) fail('CAPACITY_EXCEEDED');
-          const transactionId = secret(), state = oidc.randomState(), nonce = oidc.randomNonce(), verifier = oidc.randomPKCECodeVerifier();
-          const challenge = await oidc.calculatePKCECodeChallenge(verifier);
-          checkInitiation();
-          // Recheck after PKCE's asynchronous digest to enforce the global cap.
-          if (transactions.size >= config.maxTransactions) fail('CAPACITY_EXCEEDED');
-          transactions.set(transactionId, { state, nonce, verifier, expiresAt: Date.now() + config.transactionTtlMs,
-            priorSessionId, priorSession, intent, consumed: false, cancelled: false });
-          const authorizationUrl = oidc.buildAuthorizationUrl(client, {
-            response_type: 'code', scope: 'openid', redirect_uri: redirectUri,
-            state, nonce, code_challenge: challenge, code_challenge_method: 'S256'
-          });
-          return response({ authorizationUrl: authorizationUrl.href }, 200, [cookie(names.transaction, transactionId, config.transactionTtlMs)]);
-        }
-        if (url.pathname === '/auth/callback') {
-          const cookies = cookieValues(request), id = cookies.get(names.transaction);
-          const transaction = OPAQUE.test(id ?? '') ? transactions.get(id) : null;
-          // Retain the consumed record until settlement: new login/logout can
-          // cancel it while backchannel or membership work is still pending.
-          if (!transaction || transaction.consumed || transaction.expiresAt <= Date.now()) fail('UNAUTHENTICATED');
-          transaction.consumed = true;
-          callbackCleanup = { id, transaction };
-          const checkTransaction = () => {
-            checkContext(context);
-            if (transaction.priorSession && (sessions.get(transaction.priorSessionId) !== transaction.priorSession ||
-              transaction.priorSession.expiresAt <= Date.now() || transaction.priorSession.loginIntent !== transaction.intent)) cancelTransaction(id);
-            if (transaction.cancelled || transaction.expiresAt <= Date.now() || transactions.get(id) !== transaction) fail('UNAUTHENTICATED');
-          };
-          checkTransaction();
-          const entries = [...url.searchParams.keys()];
-          if (new Set(entries).size !== entries.length || entries.some(key => !['code', 'state', 'iss', 'error', 'error_description', 'error_uri', 'session_state'].includes(key)) ||
-            !equal(url.searchParams.get('state'), transaction.state) || url.searchParams.get('iss') !== issuer) fail('UNAUTHENTICATED');
-          if (url.searchParams.has('error')) fail('UNAUTHENTICATED');
-          if (!bounded(url.searchParams.get('code'), 2048)) fail('UNAUTHENTICATED');
-          let claims;
-          try {
-            const tokens = await oidc.authorizationCodeGrant(client, url, {
-              pkceCodeVerifier: transaction.verifier, expectedState: transaction.state, expectedNonce: transaction.nonce, idTokenExpected: true
+        try {
+          const raw = new URL(request.url);
+          const url = requestUrl(request, raw.pathname === '/auth/callback');
+          const methods = { '/auth/login': 'POST', '/auth/callback': 'GET', '/auth/session': 'GET', '/auth/logout': 'POST', '/auth/collaboration-ticket': 'POST' };
+          if (!Object.hasOwn(methods, url.pathname)) fail('NOT_FOUND');
+          if (request.method !== methods[url.pathname]) fail('METHOD_NOT_ALLOWED');
+          if (request.headers.has('authorization')) fail('BAD_REQUEST');
+          if (url.pathname === '/auth/login') {
+            checkOrigin(request);
+            if (request.headers.get('x-opendoc-login') !== '1') fail('FORBIDDEN');
+            const cookies = cookieValues(request);
+            const old = cookies.get(names.transaction), prior = cookies.get(names.session);
+            const intentId = secret();
+            initiationCleanup = { intentId };
+            // The intent is persisted BEFORE reading the body or calculating PKCE.
+            // Logout and newer initiation can therefore fence work on another host.
+            await atomic(context, 'beginLogin', { intentId,
+              oldTransactionId: OPAQUE.test(old ?? '') ? old : null,
+              priorSessionId: OPAQUE.test(prior ?? '') ? prior : null });
+            const body = await smallJson(request);
+            if (!await atomic(context, 'checkIntent', { intentId })) fail('UNAUTHENTICATED');
+            if (Object.keys(body).length) fail('BAD_REQUEST');
+            const transactionId = secret(), stateValue = oidc.randomState(), nonce = oidc.randomNonce(), verifier = oidc.randomPKCECodeVerifier();
+            const challenge = await oidc.calculatePKCECodeChallenge(verifier);
+            await atomic(context, 'publishLogin', { intentId, transactionId, transaction: { state: stateValue, nonce, verifier } });
+            initiationCleanup = null;
+            const authorizationUrl = oidc.buildAuthorizationUrl(client, {
+              response_type: 'code', scope: 'openid', redirect_uri: redirectUri,
+              state: stateValue, nonce, code_challenge: challenge, code_challenge_method: 'S256'
             });
-            claims = tokens.claims(); // Access/refresh/ID token strings are never retained.
-          } catch { fail('UNAUTHENTICATED'); }
-          checkTransaction();
-          const now = Date.now(), seconds = Math.floor(now / 1000);
-          if (!claims || !bounded(claims.sub, 512) || !Number.isSafeInteger(claims.iat) || !Number.isSafeInteger(claims.exp) ||
-            claims.iat > seconds || claims.iat < seconds - 300 || claims.exp <= seconds || claims.exp <= claims.iat || claims.exp - claims.iat > 3600) fail('UNAUTHENTICATED');
-          const identity = await membership(claims.sub);
-          checkTransaction();
-          if (!identity) fail('FORBIDDEN');
-          // A successful login always rotates the session and its CSRF secret.
-          const previous = cookies.get(names.session);
-          sweep();
-          if (sessions.size - (sessions.has(previous) ? 1 : 0) >= config.maxSessions) fail('CAPACITY_EXCEEDED');
-          const sessionId = secret(), csrfToken = secret();
-          const expiresAt = Math.min(Date.now() + config.sessionTtlMs, claims.exp * 1000);
-          if (expiresAt <= Date.now()) fail('UNAUTHENTICATED');
-          checkTransaction();
-          if (previous) removeSession(previous, transaction);
-          sessions.set(sessionId, { subject: claims.sub, principalId: identity.principalId, csrfToken, expiresAt });
-          transactions.delete(id);
-          return response(null, 303, [clearTransaction(), cookie(names.session, sessionId, expiresAt - Date.now()), cookie(names.csrf, csrfToken, expiresAt - Date.now())], successPath);
+            return response({ authorizationUrl: authorizationUrl.href }, 200, [cookie(names.transaction, transactionId, config.transactionTtlMs)]);
+          }
+          if (url.pathname === '/auth/callback') {
+            const cookies = cookieValues(request), id = cookies.get(names.transaction);
+            const claimId = secret();
+            const transaction = OPAQUE.test(id ?? '') ? await atomic(context, 'consumeTransaction', { id, claimId }) : null;
+            if (!transaction) fail('UNAUTHENTICATED');
+            callbackCleanup = { id, claimId };
+            const checkTransaction = async () => {
+              if (!await atomic(context, 'checkTransaction', { id, claimId })) fail('UNAUTHENTICATED');
+            };
+            await checkTransaction();
+            const entries = [...url.searchParams.keys()];
+            if (new Set(entries).size !== entries.length || entries.some(key => !['code', 'state', 'iss', 'error', 'error_description', 'error_uri', 'session_state'].includes(key)) ||
+              !equal(url.searchParams.get('state'), transaction.state) || url.searchParams.get('iss') !== issuer) fail('UNAUTHENTICATED');
+            if (url.searchParams.has('error')) fail('UNAUTHENTICATED');
+            if (!bounded(url.searchParams.get('code'), 2048)) fail('UNAUTHENTICATED');
+            let claims;
+            try {
+              const tokens = await oidc.authorizationCodeGrant(client, url, {
+                pkceCodeVerifier: transaction.verifier, expectedState: transaction.state, expectedNonce: transaction.nonce, idTokenExpected: true
+              });
+              claims = tokens.claims(); // Access/refresh/ID token strings are never retained.
+            } catch { fail('UNAUTHENTICATED'); }
+            await checkTransaction();
+            const now = Date.now(), seconds = Math.floor(now / 1000);
+            if (!claims || !bounded(claims.sub, 512) || !Number.isSafeInteger(claims.iat) || !Number.isSafeInteger(claims.exp) ||
+              claims.iat > seconds || claims.iat < seconds - 300 || claims.exp <= seconds || claims.exp <= claims.iat || claims.exp - claims.iat > 3600) fail('UNAUTHENTICATED');
+            const identity = await membership(claims.sub);
+            await checkTransaction();
+            if (!identity) fail('FORBIDDEN');
+            // A successful login always rotates the session and its CSRF secret.
+            const previous = cookies.get(names.session);
+            const sessionId = secret(), csrfToken = secret();
+            const { expiresAt } = await atomic(context, 'finishCallback', { id, claimId,
+              previous: OPAQUE.test(previous ?? '') ? previous : null, sessionId, tokenExpiresAt: claims.exp * 1000,
+              session: { subject: claims.sub, principalId: identity.principalId, csrfToken, version: secret() } });
+            return response(null, 303, [clearTransaction(), cookie(names.session, sessionId, expiresAt - Date.now()), cookie(names.csrf, csrfToken, expiresAt - Date.now())], successPath);
+          }
+          const current = await sessionIdentity(request, context);
+          if (!current) fail('UNAUTHENTICATED');
+          if (url.pathname === '/auth/session') return response({ ...current.identity, csrfToken: current.session.csrfToken, expiresAt: current.session.expiresAt });
+          const body = await smallJson(request);
+          checkContext(context);
+          if (!await atomic(context, 'checkSession', { id: current.id, version: current.session.version })) fail('UNAUTHENTICATED');
+          if (url.pathname === '/auth/logout') {
+            if (Object.keys(body).length) fail('BAD_REQUEST');
+            const old = cookieValues(request).get(names.transaction);
+            if (!await atomic(context, 'removeSession', { id: current.id, version: current.session.version,
+              oldTransactionId: OPAQUE.test(old ?? '') ? old : null })) fail('UNAUTHENTICATED');
+            return response(null, 204, [...clearSession(), clearTransaction()]);
+          }
+          if (Object.keys(body).length !== 1 || typeof body.roomId !== 'string' || !ID.test(body.roomId)) fail('BAD_REQUEST');
+          const ticket = secret();
+          const { expiresAt } = await atomic(context, 'issueTicket', { ticketId: ticket, sessionId: current.id,
+            version: current.session.version, roomId: body.roomId });
+          return response({ ticket, expiresAt });
+        } catch (error) {
+          let cookies = [];
+          if (callbackCleanup) {
+            // Only the durable claim owner may clear its cookie. Superseded and
+            // duplicate callbacks cannot erase a newer browser transaction.
+            try { if (await state.run('cancelCallback', callbackCleanup)) cookies = [clearTransaction()]; }
+            catch { error = new BrowserError('DEPENDENCY_UNAVAILABLE'); }
+          }
+          return failure(error, cookies);
+        } finally {
+          if (initiationCleanup) {
+            // Cleanup retains the admission slot and cannot extend the response
+            // deadline. Durable expiry bounds an abandoned initiation after crash.
+            try { await state.run('abortLogin', initiationCleanup); } catch { /* No unsafe retry. */ }
+          }
         }
-        const current = await sessionIdentity(request, context);
-        if (!current) fail('UNAUTHENTICATED');
-        if (url.pathname === '/auth/session') return response({ ...current.identity, csrfToken: current.session.csrfToken, expiresAt: current.session.expiresAt });
-        const body = await smallJson(request);
-        checkContext(context);
-        if (current.session.expiresAt <= Date.now() || sessions.get(current.id) !== current.session) fail('UNAUTHENTICATED');
-        if (url.pathname === '/auth/logout') {
-          if (Object.keys(body).length) fail('BAD_REQUEST');
-          removeSession(current.id);
-          cancelTransaction(cookieValues(request).get(names.transaction));
-          return response(null, 204, [...clearSession(), clearTransaction()]);
-        }
-        if (Object.keys(body).length !== 1 || typeof body.roomId !== 'string' || !ID.test(body.roomId)) fail('BAD_REQUEST');
-        if (tickets.size >= config.maxTickets) fail('CAPACITY_EXCEEDED');
-        const ticket = secret(), expiresAt = Math.min(Date.now() + config.ticketTtlMs, current.session.expiresAt);
-        tickets.set(ticket, { sessionId: current.id, roomId: body.roomId, expiresAt, connectionId: null });
-        return response({ ticket, expiresAt });
       });
-    } catch (error) {
-      let cookies = [];
-      if (callbackCleanup) {
-        const { id, transaction } = callbackCleanup;
-        // Superseded callbacks may not delete the newer browser's cookie. A
-        // duplicate/missing transaction likewise owns no cookie to clear.
-        if (!transaction.cancelled && transactions.get(id) === transaction) {
-          cookies = [clearTransaction()];
-          cancelTransaction(id);
-        }
-      }
-      return failure(error, cookies);
-    } finally {
-      if (initiationCleanup && initiations.get(initiationCleanup.key) === initiationCleanup.intent) initiations.delete(initiationCleanup.key);
-    }
+    } catch (error) { return failure(error); }
   }
+
   async function authenticateCollaboration(request, { connectionId } = {}) {
     return admitted(async context => {
       const url = new URL(request.url);
@@ -377,17 +351,17 @@ export function createBrowserOidc({
       if (!room || url.search || url.hash || !OPAQUE.test(connectionId ?? '') || request.headers.get('origin') !== redirect.origin) return null;
       const authorization = request.headers.get('authorization');
       const token = /^Bearer ([a-zA-Z0-9_-]{43})(?![\s\S])/.exec(authorization ?? '')?.[1];
-      const ticket = tickets.get(token);
-      if (!ticket || ticket.roomId !== room || ticket.expiresAt <= Date.now() || (ticket.connectionId !== null && ticket.connectionId !== connectionId)) return null;
-      // Bind synchronously before membership lookup, so concurrent sockets cannot
-      // both consume a ticket. Only the transport creates the connection context.
-      ticket.connectionId = connectionId;
-      const session = sessions.get(ticket.sessionId);
-      if (!session || session.expiresAt <= Date.now()) return null;
+      if (!token) return null;
+      const bound = await atomic(context, 'bindTicket', { ticketId: token, roomId: room, connectionId });
+      if (!bound) return null;
+      const { ticket, session } = bound;
       const identity = await membership(session.subject);
       checkContext(context);
-      if (!identity || identity.principalId !== session.principalId) { removeSession(ticket.sessionId); return null; }
-      return tickets.get(token) === ticket && ticket.expiresAt > Date.now() && sessions.get(ticket.sessionId) === session && session.expiresAt > Date.now() ? identity : null;
+      if (!identity || identity.principalId !== session.principalId) {
+        await atomic(context, 'removeSession', { id: ticket.sessionId, version: session.version }); return null;
+      }
+      return await atomic(context, 'checkTicket', { ticketId: token, roomId: room, connectionId,
+        sessionId: ticket.sessionId, version: session.version }) ? identity : null;
     });
   }
   function createHandler({ store } = {}) {
@@ -410,7 +384,11 @@ export function createBrowserOidc({
   return Object.freeze({
     handleAuth, authenticate, authenticateCollaboration, createHandler,
     cookieNames: names,
-    stats: () => { sweep(); return Object.freeze({ sessions: sessions.size, transactions: transactions.size, tickets: tickets.size, pendingOperations: pending }); },
-    close() { stopped = true; sessions.clear(); transactions.clear(); tickets.clear(); initiations.clear(); }
+    stats: () => {
+      const summarize = ({ sessions, transactions, tickets }) => Object.freeze({ sessions, transactions, tickets, pendingOperations: pending });
+      const result = state.run('stats');
+      return result && typeof result.then === 'function' ? result.then(summarize) : summarize(result);
+    },
+    close() { stopped = true; if (ownsState) state.clear(); }
   });
 }

@@ -1,6 +1,6 @@
 # Portable deployment references
 
-These are concrete architecture and configuration **targets**, not provisioned or validated cloud deployments. The default [local demo](../README.md) has volatile memory storage and development authentication. Optional [PostgreSQL](postgres.md), [pinned-key access-token](authentication.md), experimental [collaboration](collaboration.md) and [browser-login](browser-login.md) adapters now exist, but cloud provisioning, production identity-provider integration and production operations remain unvalidated. Browser login uses bounded in-memory sessions and explicit server-owned account mappings; it is not a multi-replica deployment. Do not deploy that demo as a production service or assume the interfaces below are already implemented.
+These are concrete architecture and configuration **targets**, not provisioned or validated cloud deployments. The default [local demo](../README.md) has volatile memory storage and development authentication. Optional [PostgreSQL](postgres.md), [pinned-key access-token](authentication.md), experimental [collaboration](collaboration.md) and [browser-login](browser-login.md) adapters now exist, but cloud provisioning, production identity-provider integration and production operations remain unvalidated. Browser login defaults to bounded in-memory sessions; an optional [PostgreSQL auth-state adapter](shared-sessions.md) shares transactions, sessions and tickets. This is separate from collaboration coordination and is not proof of a production multi-replica deployment. The [REST web editor](web-client.md) is an explicit client/host integration. Do not deploy that demo as a production service or assume the interfaces below are already implemented.
 
 ## One service contract, separate provider adapters
 
@@ -27,7 +27,7 @@ Cloud hosting and user sign-in are independent choices. An AWS deployment can us
 
 ## Configuration reference
 
-The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.4. Keep the published signed client profile separate from all server credentials.
+The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.5. Keep the published signed client profile separate from all server credentials.
 
 ```yaml
 deployment:

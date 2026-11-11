@@ -1,6 +1,6 @@
 # OpenDoc foundation design
 
-OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.4 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification experimental authenticated Yjs collaboration, and an OIDC browser-login/account-mapping foundation. It does not contain the full GPDoc application.
+OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.5 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification, experimental authenticated Yjs collaboration, an OIDC browser-login/account-mapping foundation, optional shared auth state and a REST text editor. It does not contain the full GPDoc application.
 
 ## Current scope
 
@@ -10,7 +10,7 @@ The signed profile module verifies administrator-pinned Ed25519 keys without net
 
 The optional [collaboration adapter](collaboration.md) serves separate Yjs rooms over a custom authenticated WebSocket protocol. Its PostgreSQL schema is separate from the text-document schema. There is deliberately no automatic conversion or dual writing between REST text documents and Yjs rooms. The REST capabilities endpoint describes only the REST handler, so `liveCollaboration` remains false there; a host must explicitly attach the collaboration listener.
 
-The optional [browser-login adapter](browser-login.md) handles authorization-code login with PKCE and keeps provider tokens server-side. Opaque browser sessions resolve server-owned [account mappings](accounts.md), and its REST wrapper adds CSRF checks. Short-lived room-bound tickets bridge browser sessions to the existing collaboration protocol without exposing provider tokens. This is a separate explicit host integration; the original temporary-token demo is unchanged.
+The optional [browser-login adapter](browser-login.md) handles authorization-code login with PKCE and keeps provider tokens server-side. Opaque browser sessions resolve server-owned [account mappings](accounts.md), and its REST wrapper adds CSRF checks. Short-lived room-bound tickets bridge browser sessions to the existing collaboration protocol without exposing provider tokens. This is a separate explicit host integration; the original temporary-token demo is unchanged. Optional [shared auth state](shared-sessions.md) coordinates browser transactions, sessions and tickets in PostgreSQL. It does not make collaboration fan-out multi-instance or establish a production HA deployment. The [web client](web-client.md) edits revision-checked REST text documents, not Yjs rooms.
 
 ## API contract
 
@@ -30,7 +30,7 @@ The server preserves document text as an opaque UTF-8 string. It never executes 
 
 In-memory documents disappear when the process exits. The demo is not a production server, does not implement OIDC sign-in, and is restricted to loopback. API CORS is denied by default; an allowed-origin list is explicit. Authentication is independent of origin checks. JSON request size, content length, document IDs and list size are bounded. Responses do not cache credentials or document content.
 
-Production work remains: production OIDC provider and desktop-login validation, distributed browser sessions and membership/ACL administration UI, production PostgreSQL deployment and recovery, native S3/GCS/Azure Blob adapters, cross-instance collaboration fan-out and fencing, a unified REST/Yjs document model, managed client enrollment, cloud infrastructure, full web/extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
+Production work remains: production OIDC provider and desktop-login validation, production session/key operations and membership/ACL administration UI, production PostgreSQL deployment and recovery, native S3/GCS/Azure Blob adapters, cross-instance collaboration fan-out and fencing, a unified REST/Yjs document model, managed client enrollment, cloud infrastructure, rich-text and extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
 
 ## Decisions and alternatives
 

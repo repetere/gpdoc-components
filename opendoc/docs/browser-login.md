@@ -4,8 +4,10 @@ OpenDoc now includes a browser backend-for-frontend (BFF) adapter in
 `src/browser-oidc.mjs`. It uses maintained `openid-client` for the authorization
 code protocol, S256 PKCE, state, nonce, token claims and ID-token signatures.
 It does not use browser-provided roles, tenant IDs or email addresses to authorize
-access. This is a **bounded, single-process, in-memory evaluation implementation**,
-not production SSO certification, a Ping integration claim or air-gap validation.
+access. The default is a **bounded, single-process, in-memory evaluation implementation**.
+An optional [shared PostgreSQL auth-state adapter](shared-sessions.md) durably
+shares login intents, transactions, sessions and tickets across instances. Neither
+mode is production SSO certification, a Ping integration claim or air-gap validation.
 
 ## Operator-owned trust
 
@@ -187,8 +189,11 @@ them; values are positive integers:
 The session deadline is the earlier of the fixed configured lifetime and the
 verified ID-token expiry. Counts are bounded with admission rejection rather
 than silently evicting active users. Expired entries are removed opportunistically
-on requests and `stats()`. `close()` clears every local record and rejects further
-work. `stats()` returns counts only, never credentials or personal information.
+on state operations and `stats()`. With the default memory adapter, `close()`
+clears every owned local record and rejects further work. With an external shared
+adapter, it stops only this browser instance, preserving durable state and the
+caller-owned pool. `stats()` returns counts only, never credentials or personal
+information; it is asynchronous for PostgreSQL (`await browser.stats()`).
 
 A timed-out operation keeps its admission slot until the underlying work really
 settles. This bounds even an uncooperative membership adapter. Late results cannot
@@ -252,11 +257,14 @@ consent, editor document creation, cancellation without a session, viewer write
 denial and logout. These checks do not certify Secure cookies on a public HTTPS
 deployment, cross-site SameSite/CORS behavior or a full browser compatibility matrix.
 
-This remains a foundation: shared durable sessions/transactions, multi-instance
-atomicity, deployment-wide abuse defenses, production secret rotation and key
-operations, provider-specific logout and policy, seamless collaboration renewal,
+This remains a foundation. The optional [shared auth adapter](shared-sessions.md)
+now covers durable sessions/transactions, distributed intent/cancellation fences
+and atomic ticket binding. Its serialized bounded design is not production HA.
+Deployment-wide abuse defenses, production secret rotation and key operations,
+provider-specific logout and policy, seamless collaboration renewal,
 formal penetration review and production IdP interoperability need separate work.
-Restarting the process signs all local sessions out. The PostgreSQL account mapping
-can be durable while this session store remains intentionally in memory. No claim
+Restarting the process signs default memory sessions out. PostgreSQL auth state
+survives application restarts with the same operator key, namespace and pinned
+configuration; bootstrap is explicit and never runs on ordinary startup. No claim
 is made that live external-provider behavior, Ping policy, a public TLS deployment
 or disconnected/air-gapped operation has been certified.

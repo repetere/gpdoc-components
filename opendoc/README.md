@@ -2,9 +2,9 @@
 
 An original, MIT-licensed foundation for portable document services in `gpdoc-components`.
 
-**v0.4 is an experimental foundation, not a production collaborative editor.** It implements a text-document API, tenant/role boundaries, revision checks, signed deployment profiles, PostgreSQL storage, strict access-token validation authenticated Yjs collaboration rooms, and an OIDC browser-login adapter with server-owned account mappings. It does not include a full GPDoc web application or extension.
+**v0.5 is an experimental foundation, not a production collaborative editor.** It implements a text-document API, tenant/role boundaries, revision checks, signed deployment profiles, PostgreSQL storage, strict access-token validation, authenticated Yjs collaboration rooms, browser OIDC login, server-owned account mappings, optional shared authentication state, and a REST text editor. It does not include the full GPDoc application or extension.
 
-[OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md) · [Browser login](docs/browser-login.md) · [Accounts](docs/accounts.md)
+[OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md) · [Browser login](docs/browser-login.md) · [Accounts](docs/accounts.md) · [Shared sessions](docs/shared-sessions.md) · [Web editor](docs/web-client.md)
 
 ## Run locally
 
@@ -53,6 +53,8 @@ The update returns ETag `"2"`. Reusing `"1"` returns `412`; read the current ver
 - Experimental authenticated WebSocket/Yjs rooms with server-owned tenant/role checks, commit-before-broadcast PostgreSQL snapshots, reconnect/replay and revocation checks. See [protocol, setup and limitations](docs/collaboration.md).
 - Browser authorization-code login with PKCE, state/nonce checks, opaque HttpOnly sessions, CSRF protection and room-bound WebSocket tickets. See [browser-login scope and setup](docs/browser-login.md).
 - Explicit PostgreSQL identity-to-principal bindings and tenant memberships, with administrative provisioning and no automatic email linking or account enrollment. See [account mapping](docs/accounts.md).
+- Optional authenticated-encrypted PostgreSQL state for shared login transactions, sessions and collaboration tickets. See [shared-session constraints and setup](docs/shared-sessions.md).
+- An authenticated plain-text/Markdown web editor with document lists, explicit saves, dirty-state guards and revision-conflict review. See [web client and opt-in synthetic demo](docs/web-client.md). The editor uses REST, not Yjs rooms.
 - Exact origin allowlist, authentication independent of CORS, bounded JSON input and sanitized failures.
 - Real local HTTP adapter and randomly generated development credentials.
 - Closed-schema deployment profile validation and Ed25519 compact-JWS verification with administrator-supplied public keys, deployment binding, expiration and a caller-managed generation floor.
@@ -84,12 +86,22 @@ Store adapters implement `list(tenantId)`, `get(tenantId, id)`, `create(tenantId
 
 See [the design](docs/design.md) for routes, statuses and decisions, and [specs](docs/specs.md) for test traceability. Source imports are supported directly. The package is marked `private` only to prevent accidental npm publication; its original code is covered by the root MIT license.
 
+## Try the authenticated editor
+
+After installing dependencies, run this separate opt-in fixture from `opendoc/`:
+
+```sh
+OPENDOC_SYNTHETIC_EDITOR=1 npm run demo:editor
+```
+
+Open the printed loopback URL on the same computer. Choose a synthetic account and approve local test consent. Create/edit/save documents, or open the same document in two tabs to try conflict review. Both the identity provider and documents are ephemeral; never enter real credentials or proxy the fixture publicly. This demo does not start PostgreSQL. For explicit database-backed composition, read [web-client setup](docs/web-client.md).
+
 ## What remains
 
-- Production Ping/Entra/Google interoperability, deployment-specific issuer/client registration and key rotation/revocation tests, federated logout, persistent/distributed browser sessions and membership administration UI. Browser login is tested against an isolated standards-based provider; this is not certification of every provider or deployment. The separate bearer adapter still requires its strict RFC 9068-style token profile.
+- Production Ping/Entra/Google interoperability, deployment-specific issuer/client registration and key rotation/revocation tests, federated logout, production session/key operations and membership administration UI. Browser login is tested against an isolated standards-based provider; this is not certification of every provider or deployment. The separate bearer adapter still requires its strict RFC 9068-style token profile.
 - Production PostgreSQL operations and upgrades, document ACL management, object-storage adapters and backup/restore validation.
 - Document-specific sharing, public-link policy, audit export, collaboration across server instances and a deliberate REST-to-Yjs document model. The experimental rooms are not automatically synchronized with REST documents.
-- Configurable web and rebrandable extension clients with managed enrollment.
+- Rich-text editing, configurable branding and rebrandable extension clients with managed enrollment.
 - Executable cloud infrastructure and provider integration tests.
 - Air-gap bundle with a complete deployment SBOM/license inventory, blocked-egress tests and offline operational validation.
 

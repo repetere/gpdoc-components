@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>OpenDoc · Your words, your workspace</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/editor.css">
+  <script type="module" src="/assets/editor.mjs"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to editor</a>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="OpenDoc home"><span class="brand-mark" aria-hidden="true">o</span>OpenDoc<span class="edition">WORKSPACE</span></a>
+    <div class="account"><span id="identity" class="identity">Checking session…</span><button id="check-session" class="quiet">Check session</button><button id="sign-in" hidden>Sign in</button><button id="sign-out" class="quiet" hidden>Sign out</button></div>
+  </header>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Document library">
+      <div class="sidebar-heading"><h1>Documents</h1><button id="refresh" class="icon-button" aria-label="Refresh document list" title="Refresh document list">↻</button></div>
+      <button id="new-document" class="primary new-document" disabled><span aria-hidden="true">＋</span> New document</button>
+      <p class="workspace-label" id="workspace-label">Your writing, together in one place.</p>
+      <p id="list-error" class="error-text" role="alert"></p>
+      <ul id="document-list" class="document-list" aria-label="Documents"></ul>
+      <p id="list-empty" class="muted">Sign in to see your documents.</p>
+      <div class="sidebar-footer"><span class="mode-dot" aria-hidden="true"></span>Revision-based editing<p>Changes save when you choose Save. This editor does not use live collaboration.</p></div>
+    </aside>
+    <main id="main" class="main" tabindex="-1">
+      <div class="workspace-topline"><span id="breadcrumb">WORKSPACE / EDITOR</span><span class="pill">Plain text & Markdown</span></div>
+      <div id="error" class="banner error" role="alert" hidden></div>
+      <div id="notice" class="banner notice" role="status" hidden></div>
+      <section id="welcome" class="welcome" aria-labelledby="editor-heading">
+        <div class="welcome-icon" aria-hidden="true">Aa</div>
+        <p class="eyebrow">A LITTLE SPACE TO THINK</p>
+        <h2 id="editor-heading" tabindex="-1">Make room for your next idea.</h2>
+        <p id="welcome-copy">Sign in to your workspace to write, revise, and keep your documents in one place.</p>
+        <button id="welcome-sign-in" class="primary" hidden>Sign in to your workspace <span class="cta-arrow" aria-hidden="true"></span></button>
+        <button id="welcome-new" class="primary" hidden>Create your first document <span aria-hidden="true">＋</span></button>
+        <div class="welcome-details"><span>Simple by design</span><span>Your server, your identity</span><span>Every save, a revision</span></div>
+      </section>
+      <section id="document-panel" aria-label="Document editor" hidden>
+        <div class="document-toolbar"><div><span id="save-state" class="save-state" role="status">Saved</span><span id="revision" class="revision"></span></div><div class="editor-actions"><button id="download" class="quiet">Download copy</button><button id="save" class="primary" disabled>Save changes</button></div></div>
+        <div id="read-only" class="banner notice" hidden>Editing is unavailable for this session. You can read and download your text, but cannot save changes.</div>
+        <div class="paper">
+          <label class="field-label" for="document-title">DOCUMENT TITLE</label>
+          <input id="document-title" class="document-title" type="text" maxlength="200" placeholder="Untitled document" autocomplete="off" spellcheck="true" aria-describedby="title-hint">
+          <span id="title-hint" class="sr-only">Up to 200 characters.</span>
+          <div class="paper-divider"></div>
+          <label class="field-label" for="document-content">YOUR DOCUMENT</label>
+          <textarea id="document-content" placeholder="Start writing. A good idea only needs a first line." spellcheck="true" aria-describedby="content-hint"></textarea>
+          <div class="paper-footer"><span id="content-hint">Markdown stays as plain text. No HTML is rendered.</span><span id="word-count">0 words</span></div>
+        </div>
+        <section id="conflict" class="conflict" aria-labelledby="conflict-heading" hidden>
+          <p class="eyebrow">SAVE NEEDS YOUR REVIEW</p><h3 id="conflict-heading">Keep your work. Compare the latest version.</h3>
+          <p id="conflict-message"></p>
+          <div id="remote-version" hidden><label for="remote-title" class="field-label">LATEST SAVED TITLE</label><input id="remote-title" readonly><label for="remote-content" class="field-label">LATEST SAVED CONTENT</label><textarea id="remote-content" readonly></textarea><p id="remote-revision" class="muted"></p></div>
+          <p class="muted">Copy any saved changes you need into your document above. “Keep my text” keeps your buffer and uses this reviewed revision for the next save. It does not merge automatically.</p>
+          <div class="conflict-actions"><button id="review-conflict">Check latest version</button><button id="keep-draft" class="primary" disabled>Keep my text</button><button id="use-remote" disabled>Use saved version</button></div>
+        </section>
+      </section>
+      <footer class="main-footer"><span>OpenDoc</span><span>Clear words. Considered changes.</span></footer>
+    </main>
+  </div>
+  <noscript><p class="banner error">JavaScript is required to sign in and use the editor.</p></noscript>
+</body>
+</html>
