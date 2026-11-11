@@ -1,12 +1,14 @@
 # OpenDoc foundation design
 
-OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.2 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator and signed deployment-profile verification. It does not contain the full GPDoc application.
+OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.3 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification and experimental authenticated Yjs collaboration. It does not contain the full GPDoc application.
 
 ## Current scope
 
 The API consumes standard `Request` objects and returns `Response` objects. A Node HTTP adapter hosts it on loopback for local evaluation. An in-memory store provides revision-checked text documents. An injected authenticator resolves a server-owned principal, tenant and role; the default demo uses temporary development bearer credentials rather than enterprise identity. The optional PostgreSQL adapter implements the same port with transactions. The optional access-token adapter verifies strict RS256 `at+jwt` tokens using operator-provided JWKS and resolves membership through a trusted server callback. Neither adapter is silently enabled by the demo.
 
 The signed profile module verifies administrator-pinned Ed25519 keys without network access. It is a configuration trust primitive, not an OIDC login client. No document, workspace or downloaded profile can add its own trusted key.
+
+The optional [collaboration adapter](collaboration.md) serves separate Yjs rooms over a custom authenticated WebSocket protocol. Its PostgreSQL schema is separate from the text-document schema. There is deliberately no automatic conversion or dual writing between REST text documents and Yjs rooms. The REST capabilities endpoint describes only the REST handler, so `liveCollaboration` remains false there; a host must explicitly attach the collaboration listener.
 
 ## API contract
 
@@ -26,7 +28,7 @@ The server preserves document text as an opaque UTF-8 string. It never executes 
 
 In-memory documents disappear when the process exits. The demo is not a production server, does not implement OIDC sign-in, and is restricted to loopback. API CORS is denied by default; an allowed-origin list is explicit. Authentication is independent of origin checks. JSON request size, content length, document IDs and list size are bounded. Responses do not cache credentials or document content.
 
-Production work remains: complete OIDC browser/desktop login and provider validation, persistent membership/ACL administration, production PostgreSQL deployment and recovery, native S3/GCS/Azure Blob adapters, authenticated Yjs collaboration with room fencing, managed client enrollment, cloud infrastructure, full web/extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
+Production work remains: complete OIDC browser/desktop login and provider validation, persistent membership/ACL administration, production PostgreSQL deployment and recovery, native S3/GCS/Azure Blob adapters, cross-instance collaboration fan-out and fencing, a unified REST/Yjs document model, managed client enrollment, cloud infrastructure, full web/extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
 
 ## Decisions and alternatives
 
@@ -36,7 +38,7 @@ Production work remains: complete OIDC browser/desktop login and provider valida
 | Runtime | Standard Request/Response core and Node adapter | Keeps the HTTP platform separate from document/auth ports. |
 | Persistence | Default memory demo; explicit PostgreSQL adapter | Keeps evaluation safe while testing SQL durability and atomic writes separately. |
 | Identity | Temporary demo credentials; optional strict pinned-key token adapter | Tests signed credentials without pretending complete enterprise OIDC is implemented. |
-| Live editing | Roadmap only | Yjs transport needs durable sequencing, role enforcement and failure recovery. |
+| Live editing | Experimental, separate authenticated Yjs rooms | PostgreSQL merges commit before broadcast; one listener provides live fan-out. Cross-instance delivery and full editor integration remain unimplemented. |
 
 ## Traceability
 
@@ -44,4 +46,4 @@ Requirements live in `specs.md`; tests use `@spec` identifiers. Source, fixtures
 
 ## Adapter documentation
 
-[PostgreSQL](postgres.md) defines schema creation, persistent limits, pool ownership and integration-test safety. [Authentication](authentication.md) defines the accepted token profile, operator trust configuration and server-owned membership. [Dependencies](dependencies.md) identifies pinned packages and distribution boundaries.
+[PostgreSQL](postgres.md) defines schema creation, persistent limits, pool ownership and integration-test safety. [Authentication](authentication.md) defines the accepted token profile, operator trust configuration and server-owned membership. [Collaboration](collaboration.md) defines its custom protocol, separate schema, resource limits and reconnect contract. [Dependencies](dependencies.md) identifies pinned packages and distribution boundaries.

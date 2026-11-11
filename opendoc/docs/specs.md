@@ -20,7 +20,7 @@ Profile tests use descriptive sub-contract tags: `OD-PROFILE-SCHEMA` and `OD-PRO
 
 ## Intent edge audit
 
-The current foundation narrows portability to an HTTP/auth/storage contract and profile trust. The PostgreSQL adapter tests establish the exercised local SQL behaviors, not production backup/restore, database failover or cloud operations. Token tests establish strict pinned-key validation, not a complete enterprise login. Tests do not imply document ACLs, distributed collaboration, encryption-at-rest guarantees, cloud deployments or air-gap operation. A later implementation must add requirements/tests before advertising those capabilities.
+The current foundation narrows portability to HTTP/auth/storage contracts, profile trust and an experimental collaboration protocol. The PostgreSQL adapter tests establish the exercised local SQL behaviors, not production backup/restore, database failover or cloud operations. Token tests establish strict pinned-key validation, not a complete enterprise login. Tests do not imply document ACLs, distributed collaboration, encryption-at-rest guarantees, cloud deployments or air-gap operation. A later implementation must add requirements/tests before advertising those capabilities.
 
 ## Adapter requirements
 
@@ -36,3 +36,17 @@ The current foundation narrows portability to an HTTP/auth/storage contract and 
 - **OD-AUTH-002:** Only trusted server membership shall determine internal principal, active tenant and role; token roles and tenant claims shall not authorize access.
 - **OD-AUTH-003:** Keys and issuer policy shall come from operator configuration, never token URLs or payloads; validation shall not fetch keys or enroll clients.
 - **OD-AUTH-004:** Invalid credentials shall deny access, while membership outages shall remain sanitized operational failures.
+
+
+## Experimental collaboration requirements
+
+- **OD-COLLAB-001:** The WebSocket adapter shall authenticate before returning room data, derive scope/role only from trusted membership, enforce an exact origin policy and reject URL-carried credentials.
+- **OD-COLLAB-002:** Writes shall merge Yjs state durably before acknowledging or broadcasting. Replaying the same update shall not create a new revision when state is unchanged.
+- **OD-COLLAB-003:** Tenant/room scope shall be bound to the authenticated connection. Read-only members shall not change room state; receivers shall be reauthorized before snapshots and fan-out, with idle revalidation.
+- **OD-COLLAB-004:** Independent clients shall converge after concurrent edits and reconnect with retained local edits. Stored snapshots shall survive service and connection-pool restarts.
+- **OD-COLLAB-005:** Collaboration schemas shall be explicitly initialized in fresh namespaces, separate from REST documents. Room quotas and snapshots shall change atomically across database connections.
+- **OD-COLLAB-006:** Untrusted Yjs parsing shall run in disposable time/heap-limited workers with bounded bytes, structures, nesting and pending state. This is not an OS memory sandbox or a complete denial-of-service guarantee.
+- **OD-COLLAB-007:** Connections, queues, dependency work and send buffers shall be bounded. Dependency errors shall be sanitized and uncertain writes shall not be acknowledged as successful.
+- **OD-COLLAB-008:** Clients shall use the documented custom protocol, keep credentials out of URLs, reject malformed state frames and stop on oversized replay rather than silently discard local edits.
+
+The integration suite composes synthetic signed access tokens, real loopback WebSockets, multiple Y.Docs and real PostgreSQL. It does not exercise a browser editor, an external identity provider, multiple live fan-out instances, database crash recovery or a disconnected network deployment. The REST capabilities endpoint remains scoped to the REST handler; collaboration must be attached separately.

@@ -6,7 +6,7 @@ Open-source skills and components for GPDoc.
 
 ## OpenDoc
 
-[OpenDoc](https://repetere.github.io/gpdoc-components/opendoc/) is an original portable document-service foundation. The [runnable local reference](opendoc/README.md) includes a tenant-scoped text API, conditional revisions, signed deployment profiles, a PostgreSQL store adapter and a strict access-token authentication adapter. Cloud object-storage adapters, complete enterprise login, live collaboration and full editor clients remain planned. See [AWS, GCP, Azure and open-source Kubernetes reference architectures](opendoc/docs/deployment.md) for the proposed production boundaries and validation requirements.
+[OpenDoc](https://repetere.github.io/gpdoc-components/opendoc/) is an original portable document-service foundation. The [runnable local reference](opendoc/README.md) includes a tenant-scoped text API, conditional revisions, signed deployment profiles, a PostgreSQL store adapter, a strict access-token authentication adapter and experimental authenticated Yjs collaboration rooms. Collaboration uses a separate state model and custom WebSocket protocol; it is not a full editor or a production multi-instance service. Cloud object-storage adapters, complete enterprise login and full editor clients remain planned. See [AWS, GCP, Azure and open-source Kubernetes reference architectures](opendoc/docs/deployment.md) for the proposed production boundaries and validation requirements.
 
 ## Skills
 

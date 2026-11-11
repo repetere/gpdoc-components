@@ -1,10 +1,10 @@
 # Portable deployment references
 
-These are concrete architecture and configuration **targets**, not provisioned or validated cloud deployments. The default [local demo](../README.md) has volatile memory storage and development authentication. Optional [PostgreSQL](postgres.md) and [pinned-key access-token](authentication.md) adapters now exist, but cloud provisioning, complete login, identity-provider integration and production operations remain unvalidated. Do not deploy that demo as a production service or assume the interfaces below are already implemented.
+These are concrete architecture and configuration **targets**, not provisioned or validated cloud deployments. The default [local demo](../README.md) has volatile memory storage and development authentication. Optional [PostgreSQL](postgres.md), [pinned-key access-token](authentication.md) and experimental [collaboration](collaboration.md) adapters now exist, but cloud provisioning, complete login, identity-provider integration and production operations remain unvalidated. Do not deploy that demo as a production service or assume the interfaces below are already implemented.
 
 ## One service contract, separate provider adapters
 
-The target architecture separates HTTP API/web clients, authenticated collaboration workers, PostgreSQL metadata/authorization/revisions and binary object storage. The baseline needs **one PostgreSQL database** and **one private object store**, not four databases. A coordination/event service is optional until multiple collaboration replicas require it. A search index or vector database is not required for the document foundation.
+The target architecture separates HTTP API/web clients, authenticated collaboration workers, PostgreSQL metadata/authorization/revisions and binary object storage. The baseline needs **one PostgreSQL database** and **one private object store**, not four databases. The experimental collaboration adapter supports live fan-out within one process only. Multiple replicas require a durable fan-out/coordination design and fencing before being offered as a live service; load-balancer affinity alone is not sufficient. A search index or vector database is not required for the document foundation.
 
 PostgreSQL should own tenants, principals, membership, document metadata, ACLs, share-link hashes, revisions, durable update ordering and audit events. Put attachments and compacted document snapshots in object storage under tenant-scoped keys. Keep small revision bodies in PostgreSQL initially if that makes atomic writes simpler. Object references must become visible only after the corresponding object is durably written; use an outbox and orphan cleanup for cross-store writes. PostgreSQL and a bucket are not an atomic transaction together.
 
@@ -27,7 +27,7 @@ Cloud hosting and user sign-in are independent choices. An AWS deployment can us
 
 ## Configuration reference
 
-The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.2. Keep the published signed client profile separate from all server credentials.
+The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.3. Keep the published signed client profile separate from all server credentials.
 
 ```yaml
 deployment:

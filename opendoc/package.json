@@ -1,6 +1,6 @@
 {
   "name": "@gpdoc/opendoc-foundation",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Original portable document API and deployment-profile reference foundation",
   "type": "module",
@@ -19,10 +19,15 @@
     "./memory-store": "./src/memory-store.mjs",
     "./node": "./src/node-adapter.mjs",
     "./postgres-store": "./src/postgres-store.mjs",
-    "./access-token-auth": "./src/access-token-auth.mjs"
+    "./access-token-auth": "./src/access-token-auth.mjs",
+    "./collaboration-server": "./src/collaboration-server.mjs",
+    "./collaboration-client": "./src/collaboration-client.mjs",
+    "./collaboration-store": "./src/collaboration-store.mjs"
   },
   "dependencies": {
-    "jose": "6.2.17"
+    "jose": "6.2.17",
+    "ws": "8.22.2",
+    "yjs": "13.6.33"
   },
   "devDependencies": {
     "pg": "8.23.1"
