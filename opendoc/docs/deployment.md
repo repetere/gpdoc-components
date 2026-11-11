@@ -27,7 +27,7 @@ Cloud hosting and user sign-in are independent choices. An AWS deployment can us
 
 ## Configuration reference
 
-The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.7. Keep the published signed client profile separate from all server credentials.
+The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.8. Keep the published signed client profile separate from all server credentials.
 
 ```yaml
 deployment:
@@ -93,6 +93,43 @@ The infrastructure can use Kubernetes, Envoy Gateway, cert-manager, CloudNativeP
 - For disconnected installation, mirror every OCI image, chart, package and required frontend asset. Maintain signed bundle manifests, SBOMs, license notices and internal CA trust. An install that still downloads from public registries is not air-gapped.
 - Local identity must include discovery, authorization/token endpoints, JWKS rollover and logout/revocation as designed. Keep DNS, time synchronization, backups, certificates and administration available inside the boundary. External Google/Entra sign-in cannot be assumed to work offline.
 - Default telemetry/exporters off. Disable external fonts, CDN scripts, extension auto-updates, marketplace checks, crash reporting and remote AI calls unless specifically allowed by deployment policy. Demonstrate denied egress in tests, not by a configuration label.
+
+## Local shared-primary collaboration option
+
+The opt-in [shared live synchronization](shared-collaboration.md) reference lets
+separate collaboration processes poll committed revisions from the **same fixed
+PostgreSQL primary and live-document schema**. The default remains local fanout.
+Every instance must use the same authorization policy and current membership
+source. Browser deployments that route authentication across instances also need
+the separate [shared session adapter](shared-sessions.md), matching trust
+configuration and encryption-key operations. A load balancer does not provide
+any of these guarantees by itself.
+
+Use bounded pools, statement/transaction timeouts and connection limits. Polling
+adds database and authorization reads per active room and receiver; load, quota
+pressure, network partitions and rolling deployments need deployment-specific
+testing. Do not switch a running pool to an independent database, restored clone,
+read replica or divergent primary. This reference has no distributed ownership
+lease, database failover fencing, multi-primary protocol or recovery-epoch
+negotiation. Operator-controlled database failover/restore requires a separate
+design and evidence before enabling production failover.
+
+## Optional guarded local persistence
+
+The [guarded live storage guide](guarded-live-storage.md) provides opt-in
+transaction-bound account membership checks and a fresh guarded schema with a
+pinned authority identifier, durable checkpoints and namespace-wide quarantine.
+Authentication, account administration and live writes must share the documented
+fixed database and lock protocol. Account locks can delay revocation behind an
+already-authorized write; guarded reads serialize and increase contention.
+
+The history option requires an explicitly initialized fresh schema. Older
+binaries reject it; no implicit migration, history adoption or quarantine reset
+is implemented. One detected document inconsistency blocks the entire namespace,
+including other tenants. Recovery remains an operator-owned design and review.
+A database restored or cloned together with its checkpoints and authority ID
+cannot be distinguished by this database-local guard. It is not HA, failover
+fencing, independent backup validation or proof of recovery readiness.
 
 ## Required acceptance before calling a target ready
 

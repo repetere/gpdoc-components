@@ -139,7 +139,8 @@ export function createOpenDocHandler({ store, liveStore, authenticate, allowedOr
       if (['POST', 'PUT'].includes(request.method) && !WRITE_ROLES.has(role)) fail('FORBIDDEN');
       if (route.type === 'live-collection') {
         if (request.method === 'GET') return respond({ documents: await liveStore.list(tenantId) });
-        const doc = await liveStore.create(tenantId, await readDocument(request, true, true));
+        const actor = Object.freeze({ principalId, tenantId });
+        const doc = await liveStore.create(tenantId, await readDocument(request, true, true), actor);
         return respond(liveDocumentProjection(doc), 201, { location: `/api/v1/live-documents/${encodeURIComponent(doc.id)}` });
       }
       if (route.type === 'live-document') {

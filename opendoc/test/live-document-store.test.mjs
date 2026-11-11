@@ -111,3 +111,34 @@ test('PostgreSQL live failures sanitize private driver details and discard uncer
     }
   }
 });
+
+test('PostgreSQL changed reads fence commits and avoid unchanged state decoding', async () => {
+  const script = scripted([{ match: /^BEGIN/ }, { match: /FOR SHARE$/, rows: [caps] },
+    { match: /^SELECT revision FROM .*WHERE tenant_id = \$1 AND document_id = \$2$/, rows: [{ revision: '4' }] }, { match: /^COMMIT$/ }]);
+  assert.equal(await pg(script.pool).getIfChanged('one', 'live', 4), null);
+  assert.deepEqual(script.calls[2].values, ['one', 'live']); script.done();
+  const store = pg({ async connect() { assert.fail('Bad input must not connect'); } });
+  for (const value of [undefined, null, 0, -1, 1.5, '1', Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    await assert.rejects(store.getIfChanged('one', 'live', value), rejects('BAD_REQUEST'));
+  }
+  await assert.rejects(store.getIfChanged('../tenant', 'live', 1), rejects('BAD_REQUEST'));
+});
+
+test('PostgreSQL changed reads distinguish missing, regressed and corrupt authority', async () => {
+  for (const rows of [[], [{ revision: '2' }], [{ revision: 'bad' }], [{ revision: '3' }, { revision: '3' }]]) {
+    const script = scripted([{ match: /^BEGIN/ }, { match: /FOR SHARE$/, rows: [caps] }, { rows }, { match: /^ROLLBACK$/ }]);
+    await assert.rejects(pg(script.pool).getIfChanged('one', 'live', 3), rejects(rows.length ? 'DEPENDENCY_UNAVAILABLE' : 'NOT_FOUND'));
+    script.done();
+  }
+  const current = await new MemoryLiveDocumentStore().create('one', input);
+  const row = { document_id: current.id, revision: '2', title_json: Buffer.from(JSON.stringify(current.title)),
+    content_json: Buffer.from(JSON.stringify(current.content)), state: current.state,
+    created_at: current.createdAt, updated_at: current.updatedAt };
+  const script = scripted([{ match: /^BEGIN/ }, { match: /FOR SHARE$/, rows: [caps] },
+    { match: /^SELECT revision/, rows: [{ revision: '2' }] }, { match: /^SELECT \*/, rows: [row] }, { match: /^COMMIT$/ }]);
+  assert.deepEqual(await pg(script.pool).getIfChanged('one', 'live', 1), { ...current, revision: 2 }); script.done();
+  for (const bad of [{ ...row, revision: '3' }, { ...row, content_json: Buffer.from(JSON.stringify('Wrong projection')) }]) {
+    const failure = scripted([{ match: /^BEGIN/ }, { rows: [caps] }, { rows: [{ revision: '2' }] }, { rows: [bad] }, { match: /^ROLLBACK$/ }]);
+    await assert.rejects(pg(failure.pool).getIfChanged('one', 'live', 1), rejects('DEPENDENCY_UNAVAILABLE')); failure.done();
+  }
+});

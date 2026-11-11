@@ -174,12 +174,39 @@ PostgreSQL size. All three limits are atomic. Configure separate physical storag
 and history-retention budgets. There is no delete, compaction, history reset,
 backup/restore UI or general migration tool in this milestone.
 
-Durable multi-process writes are tested, but live fanout is **single-process**.
-There is no Redis, LISTEN/NOTIFY, distributed room registry or cross-node event
-bus. Use one active collaboration process per live namespace, or explicitly
-request sync/reconnect to read changes committed elsewhere. Do not claim automatic
-cross-node convergence from PostgreSQL storage alone. Shared login sessions do
-not change this transport constraint.
+Live fanout is **single-process by default**. Hosts may explicitly enable
+[shared live synchronization](shared-collaboration.md) for servers using the same
+fixed PostgreSQL primary and live-document schema. It polls committed revisions
+for active rooms, validates changed state, and independently reauthorizes each
+receiver. It is not Redis, LISTEN/NOTIFY, a distributed room registry or an event
+bus. Without the option, use one active collaboration process per live namespace
+or explicitly request sync/reconnect to read changes committed elsewhere.
+
+`PostgresLiveDocumentStore.getIfChanged(tenantId, documentId, knownRevision)`
+uses the default schema's shared quota-row fence (the optional guarded schema serializes reads). A positive safe-integer revision is required.
+It returns `null` only when the current revision is unchanged, a validated full
+document when newer, `NOT_FOUND` when missing, or `DEPENDENCY_UNAVAILABLE` when
+revision history regresses or is invalid. Unchanged polling skips CRDT decoding.
+Normal application writes always advance the revision for changed state. Direct
+database edits, independent cloned primaries, transparent pool/alias authority
+switches and recovery to divergent history are not supported by this contract.
+The option does not provide database failover or multi-primary split-brain safety.
+
+## Optional write and history guards
+
+[Guarded live storage](guarded-live-storage.md) documents two explicit host options.
+`accountSchema` binds live create/update authorization to current membership on
+the live transaction's own connection, with a required trusted actor. The account
+lock is held through commit; a revocation that commits first denies the later
+write, while a write holding the fence first may finish before revocation.
+This does not make session logout, token expiry or external IdP changes atomic.
+
+`historyGuard: { authorityId }` selects a fresh guarded schema version with
+transactionally maintained checkpoints. It checks canonical bytes and projections,
+including unchanged polls, and persists namespace-wide quarantine on verified
+history inconsistency. All reads serialize in this bounded mode. No existing
+schema is upgraded or adopted. Restoring or cloning both data and checkpoints
+remains undetectable; the authority pin is not a failover protocol or secret.
 
 ## Parsing and resource limits
 

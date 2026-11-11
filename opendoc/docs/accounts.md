@@ -234,3 +234,19 @@ bindings, concurrent quotas, revocation, process/pool persistence, rollback
 atomicity, pending-writer read barriers and uncertain-commit outcomes.
 It creates random fresh schemas and cleans up only those exact schemas and tables
 without `CASCADE`. It must never target production or a shared non-test database.
+
+## Optional transaction-bound live writes
+
+The [live write guard](guarded-live-storage.md) can check this account schema on
+the live store's own transaction connection and hold its shared account-state
+lock through the document commit. HTTP live creation and live-v2 updates pass
+only the copied, verified principal and tenant. Authentication must resolve
+those same principals against this same fixed database/account namespace.
+No generic callback or matching schema string can establish that composition.
+
+This option requires explicit runtime schema/table and row-lock privileges;
+`FOR SHARE` also requires an appropriate `UPDATE` privilege. It does not require
+blanket account-administration access. Operators must configure least privilege,
+pool limits and timeouts. Missing privileges fail closed without trying another
+pool. The internal `createPostgresAccountWriteGuard` helper is not a credential
+validator or a standalone transaction API.

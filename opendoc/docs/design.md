@@ -1,6 +1,6 @@
 # OpenDoc foundation design
 
-OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.7 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification, experimental authenticated Yjs collaboration, an OIDC browser-login/account-mapping foundation, optional shared auth state, a REST text editor and an opt-in live Yjs text editor with automatic short-lived ticket renewal and bounded reconnect. It does not contain the full GPDoc application.
+OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.8 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification, experimental authenticated Yjs collaboration, an OIDC browser-login/account-mapping foundation, optional shared auth state, a REST text editor and an opt-in live Yjs text editor with automatic short-lived ticket renewal bounded reconnect, and opt-in periodic synchronization through one shared PostgreSQL authority. It does not contain the full GPDoc application.
 
 ## Current scope
 
@@ -10,7 +10,9 @@ The signed profile module verifies administrator-pinned Ed25519 keys without net
 
 The optional [collaboration adapter](collaboration.md) serves separate Yjs rooms over a custom authenticated WebSocket protocol. Its PostgreSQL schema is separate from the text-document schema. There is deliberately no automatic conversion or dual writing between REST text documents and Yjs rooms. The REST capabilities endpoint describes only the REST handler, so `liveCollaboration` remains false there; a host must explicitly attach the collaboration listener.
 
-The optional [browser-login adapter](browser-login.md) handles authorization-code login with PKCE and keeps provider tokens server-side. Opaque browser sessions resolve server-owned [account mappings](accounts.md), and its REST wrapper adds CSRF checks. Short-lived room-bound tickets bridge browser sessions to the existing collaboration protocol without exposing provider tokens. This is a separate explicit host integration; the original temporary-token demo is unchanged. Optional [shared auth state](shared-sessions.md) coordinates browser transactions, sessions and tickets in PostgreSQL. It does not make collaboration fan-out multi-instance or establish a production HA deployment. The original [web client](web-client.md) edits revision-checked REST text documents. The opt-in [live editor](live-editor.md) edits a separate [live document collection](live-documents.md), whose Yjs state is authoritative. Snapshot replacement is not supported for live documents, and no automatic conversion or dual writing links the two collections.
+The optional [browser-login adapter](browser-login.md) handles authorization-code login with PKCE and keeps provider tokens server-side. Opaque browser sessions resolve server-owned [account mappings](accounts.md), and its REST wrapper adds CSRF checks. Short-lived room-bound tickets bridge browser sessions to the existing collaboration protocol without exposing provider tokens. This is a separate explicit host integration; the original temporary-token demo is unchanged. Optional [shared auth state](shared-sessions.md) coordinates browser transactions, sessions and tickets in PostgreSQL. It does not make collaboration fan-out multi-instance or establish a production HA deployment. The original [web client](web-client.md) edits revision-checked REST text documents. The opt-in [live editor](live-editor.md) edits a separate [live document collection](live-documents.md), whose Yjs state is authoritative. Optional [shared live synchronization](shared-collaboration.md) periodically propagates committed revisions between servers using the same fixed PostgreSQL primary and schema; it is not a distributed leader or multi-primary protocol. Snapshot replacement is not supported for live documents, and no automatic conversion or dual writing links the two collections.
+
+Optional [guarded live storage](guarded-live-storage.md) adds account membership fencing to live creation/updates and restart-persistent integrity checks in a fresh schema. These options do not change legacy stores, synchronize session logout with database writes, or detect restoring/cloning an entire database with its checkpoints.
 
 ## API contract
 
@@ -30,7 +32,7 @@ The server preserves document text as an opaque UTF-8 string. It never executes 
 
 In-memory documents disappear when the process exits. The demo is not a production server, does not implement OIDC sign-in, and is restricted to loopback. API CORS is denied by default; an allowed-origin list is explicit. Authentication is independent of origin checks. JSON request size, content length, document IDs and list size are bounded. Responses do not cache credentials or document content.
 
-Production work remains: production OIDC provider and desktop-login validation, production session/key operations and membership/ACL administration UI, production PostgreSQL deployment and recovery, native S3/GCS/Azure Blob adapters, cross-instance collaboration fan-out and fencing, a unified REST/Yjs document model, managed client enrollment, cloud infrastructure, rich-text and extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
+Production work remains: production OIDC provider and desktop-login validation, production session/key operations and membership/ACL administration UI, production PostgreSQL deployment and recovery, native S3/GCS/Azure Blob adapters, event-driven collaboration scaling and database failover fencing, deliberate REST/Yjs import and export, managed client enrollment, cloud infrastructure, rich-text and extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
 
 ## Decisions and alternatives
 
@@ -40,7 +42,7 @@ Production work remains: production OIDC provider and desktop-login validation, 
 | Runtime | Standard Request/Response core and Node adapter | Keeps the HTTP platform separate from document/auth ports. |
 | Persistence | Default memory demo; explicit PostgreSQL adapter | Keeps evaluation safe while testing SQL durability and atomic writes separately. |
 | Identity | Temporary demo credentials; optional bearer validator and OIDC browser-session adapter | Test a standard local identity provider and explicit account mapping without claiming production provider interoperability. |
-| Live editing | Experimental, separate authenticated Yjs rooms | PostgreSQL merges commit before broadcast; one listener provides live fan-out. Cross-instance delivery and full editor integration remain unimplemented. |
+| Live editing | Experimental, separate authenticated Yjs rooms | PostgreSQL merges commit before broadcast; an opt-in live text editor and shared-primary polling are available. Guarded storage is explicit; rich text, production scaling and database failover remain unimplemented. |
 
 ## Traceability
 
