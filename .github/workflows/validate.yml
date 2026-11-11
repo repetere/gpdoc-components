@@ -18,6 +18,7 @@ jobs:
   opendoc-postgres:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         postgres: ['16', '17']
     services:
@@ -28,7 +29,7 @@ jobs:
           POSTGRES_PASSWORD: synthetic-test-only
           POSTGRES_DB: opendoc_test
         ports:
-          - 5432:5432
+          - 127.0.0.1:5432:5432
         options: >-
           --health-cmd "pg_isready -U opendoc_test -d opendoc_test"
           --health-interval 10s
@@ -40,6 +41,12 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --prefix opendoc --ignore-scripts
+      - name: Identify this test service
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: |
+          address=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$POSTGRES_CONTAINER_ID")
+          printf 'OPENDOC_PG_EXPECTED_SERVER_ADDRESS=%s\n' "$address" >> "$GITHUB_ENV"
       - name: Test isolated PostgreSQL store
         run: npm run test:postgres --prefix opendoc
         env:

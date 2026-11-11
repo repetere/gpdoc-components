@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { execFile } from 'node:child_process';
+import { isIP } from 'node:net';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
 import { PostgresDocumentStore, initializePostgresSchema } from '../src/postgres-store.mjs';
@@ -23,6 +24,15 @@ function testTarget(raw) {
     max: 1, connectionTimeoutMillis: 3000, query_timeout: 10000, statement_timeout: 8000, idle_in_transaction_session_timeout: 8000
   };
 }
+function expectedServerAddresses(raw) {
+  if (raw === undefined) return ['127.0.0.1', '::1'];
+  if (typeof raw !== 'string' || isIP(raw) === 0 || raw.includes('%')) {
+    throw new Error('The expected PostgreSQL server address must be one exact IP address');
+  }
+  // A container can report its own address behind a loopback-published port.
+  // This assertion target never changes the client's loopback connection target.
+  return [raw];
+}
 function rejects(code) { return error => error instanceof StoreError && error.code === code && error.message === code && error.cause === undefined; }
 const input = { id: 'doc', title: 'Synthetic', content: 'Synthetic text only.' };
 
@@ -37,11 +47,28 @@ test('integration harness refuses remote, non-test, ambient, and option-bearing 
   assert.equal(testTarget('postgres://opendoc_test:synthetic-test-only@127.0.0.1:55432/opendoc_test').port, 55432);
 });
 
+test('server identity guard defaults to loopback or requires one exact explicitly supplied IP', () => {
+  assert.deepEqual(expectedServerAddresses(undefined), ['127.0.0.1', '::1']);
+  assert.ok(!expectedServerAddresses(undefined).includes('172.18.0.2'));
+  const expected = expectedServerAddresses('172.18.0.2');
+  assert.deepEqual(expected, ['172.18.0.2']);
+  assert.ok(!expected.includes('172.18.0.3'));
+  assert.ok(!expected.includes('127.0.0.1'));
+  assert.deepEqual(expectedServerAddresses('2001:db8::2'), ['2001:db8::2']);
+  for (const invalid of ['', ' ', 'true', '*', 'localhost', '172.18.0.0/16', '172.18.0.*',
+    '172.18.0.2,172.18.0.3', '172.18.0.2\n', '[::1]', 'fe80::1%eth0', '999.1.1.1']) {
+    assert.throws(() => expectedServerAddresses(invalid));
+  }
+  assert.equal(testTarget('postgres://opendoc_test:synthetic-test-only@127.0.0.1:5432/opendoc_test').host, '127.0.0.1');
+  assert.throws(() => testTarget('postgres://opendoc_test:synthetic-test-only@172.18.0.2:5432/opendoc_test'));
+});
+
 test('real PostgreSQL: isolation, persistence, concurrency, quotas and schema safety', {
   skip: process.env.OPENDOC_PG_INTEGRATION !== '1' ? 'Set OPENDOC_PG_INTEGRATION=1 and a synthetic loopback DATABASE_URL to opt in' : false,
   timeout: 90000
 }, async t => {
   const config = testTarget(process.env.DATABASE_URL);
+  const expectedAddresses = expectedServerAddresses(process.env.OPENDOC_PG_EXPECTED_SERVER_ADDRESS);
   const { Pool } = await import('pg');
   const poolA = new Pool(config);
   const poolB = new Pool(config);
@@ -64,7 +91,7 @@ test('real PostgreSQL: isolation, persistence, concurrency, quotas and schema sa
   const identity = await poolA.query('SELECT current_database() AS database, current_user AS username, host(inet_server_addr()) AS address, pg_backend_pid() AS pid');
   assert.equal(identity.rows[0].database, 'opendoc_test');
   assert.equal(identity.rows[0].username, 'opendoc_test');
-  assert.ok(['127.0.0.1', '::1'].includes(identity.rows[0].address));
+  assert.ok(expectedAddresses.includes(identity.rows[0].address), 'The connected PostgreSQL server must report the expected address');
   const otherIdentity = await poolB.query('SELECT pg_backend_pid() AS pid');
   assert.notEqual(identity.rows[0].pid, otherIdentity.rows[0].pid, 'Independent server connections are required');
 
