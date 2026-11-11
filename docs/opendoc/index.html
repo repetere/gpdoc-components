@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OpenDoc v0.1: an original MIT-licensed foundation for cloud-neutral document services. Run the local reference API and explore the deployment roadmap.">
+  <meta name="theme-color" content="#faf9f6">
+  <title>OpenDoc · An open foundation for document services</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▤</span> <b>OpenDoc</b><span class="brand-caption"> / foundation</span></a>
+    <nav aria-label="Primary">
+      <a href="#status">Status</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#clouds">Cloud targets</a>
+      <a href="https://github.com/repetere/gpdoc-components/tree/main/opendoc">Source <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="opendoc-hero page-width" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow">OPEN SOURCE · CLOUD-NEUTRAL · V0.1</div>
+        <h1 id="hero-title">An open foundation<br>for <em>documents.</em></h1>
+        <p class="lead">Start with a small, inspectable document service. Build toward an experience you can host, extend, and make your own.</p>
+        <p class="hero-detail">OpenDoc is an original MIT-licensed foundation: a local reference API, tenant and role checks, revision conflict handling, and a signed deployment-profile verifier.</p>
+        <div class="actions">
+          <a class="primary" href="#quickstart">Run it locally <span aria-hidden="true">↓</span></a>
+          <a href="https://github.com/repetere/gpdoc-components/tree/main/opendoc">Explore the source <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="release-note"><span class="status-dot" aria-hidden="true"></span> v0.1 foundation <span class="release-divider" aria-hidden="true">/</span> Local prototype, not production-ready</p>
+      </div>
+      <figure class="blueprint" aria-labelledby="blueprint-caption">
+        <div class="blueprint-heading"><span>THE BUILDING BLOCKS</span><span aria-hidden="true">01 / 03</span></div>
+        <div class="blueprint-layer blueprint-client">
+          <div class="layer-index">01</div>
+          <div><h2>Your document experience</h2><p>Web · VS Code · agent workflows</p></div>
+          <span class="tag planned">PLANNED</span>
+        </div>
+        <div class="connector" aria-hidden="true"><span></span>Clear interfaces<span></span></div>
+        <div class="blueprint-layer blueprint-core">
+          <div class="layer-index">02</div>
+          <div><h2>OpenDoc core</h2><p>Document API · authorization · revisions</p></div>
+          <span class="tag available">LOCAL NOW</span>
+        </div>
+        <div class="connector" aria-hidden="true"><span></span>Replaceable adapters<span></span></div>
+        <div class="blueprint-layer blueprint-storage">
+          <div class="layer-index">03</div>
+          <div><h2>Your infrastructure</h2><p>AWS · GCP · Azure · open-source stack</p></div>
+          <span class="tag planned">PLANNED</span>
+        </div>
+        <figcaption id="blueprint-caption">Architecture direction. The v0.1 reference runs locally; production clients and cloud adapters are not implemented.</figcaption>
+      </figure>
+    </section>
+
+    <section class="foundation-status page-width" id="status" aria-labelledby="status-title">
+      <div class="section-heading">
+        <div><div class="eyebrow">01 / PROJECT STATUS</div><h2 id="status-title">A working start.<br>A visible boundary.</h2></div>
+        <p>Small enough to understand. Explicit about what is here and what still needs to be built.</p>
+      </div>
+      <div class="status-columns">
+        <article class="status-panel current">
+          <div class="panel-heading"><span class="tag available">AVAILABLE IN V0.1</span><span aria-hidden="true">●</span></div>
+          <h3>Local reference foundation</h3>
+          <ul>
+            <li>Authenticated local document API with tenant and role checks.</li>
+            <li>Revision conflict handling for guarded document updates.</li>
+            <li>Signed deployment-profile verification.</li>
+            <li>Conformance tests and cloud-neutral interfaces.</li>
+            <li>Node.js 22+ runtime, with no third-party runtime dependencies.</li>
+          </ul>
+          <p class="panel-note">Demo authentication uses a local temporary token. It is not enterprise OIDC login.</p>
+        </article>
+        <article class="status-panel future">
+          <div class="panel-heading"><span class="tag planned">PLANNED / NOT IMPLEMENTED</span><span aria-hidden="true">○</span></div>
+          <h3>The production path</h3>
+          <ul>
+            <li>Live Yjs collaboration and enterprise OIDC login.</li>
+            <li>Production PostgreSQL and S3 / GCS / Blob storage adapters.</li>
+            <li>Cloud infrastructure as code and tested deployment recipes.</li>
+            <li>Rebrandable full web and VS Code clients.</li>
+            <li>Verified air-gap operation and production hardening.</li>
+          </ul>
+          <p class="panel-note">These are roadmap goals, not release promises. No cloud deployment is claimed or verified here.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="quickstart-section page-width" id="quickstart" aria-labelledby="quickstart-title">
+      <div class="quickstart-copy">
+        <div class="eyebrow">02 / GET STARTED</div>
+        <h2 id="quickstart-title">From source<br>to localhost.</h2>
+        <p>You need <strong>Git and Node.js 22 or newer</strong>. Clone the public repository, run the checks, then start the local demo.</p>
+        <p>No cloud account or package installation is needed for this reference. Read the source before running it.</p>
+        <a class="text-link" href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/README.md">Read the source and setup notes <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="quickstart-example">
+        <div class="terminal">
+          <div class="terminal-heading"><span>TERMINAL / LOCAL REFERENCE</span><button id="copy-quickstart" type="button" aria-controls="quickstart-commands" hidden>Copy commands</button></div>
+          <pre tabindex="0" aria-label="Local setup commands"><code id="quickstart-commands">git clone https://github.com/repetere/gpdoc-components.git
+cd gpdoc-components/opendoc
+npm test
+npm run demo</code></pre>
+          <div class="terminal-foot"><span aria-hidden="true">↳</span> Starts on loopback · follow the terminal output</div>
+        </div>
+        <p id="copy-status" class="copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        <div class="local-note"><strong>For local exploration only.</strong> The demo binds to loopback and uses a temporary authentication fixture. Documents are stored in memory and disappear when the process stops. Do not expose it to the internet or treat it as a production identity or storage service.</div>
+      </div>
+    </section>
+
+    <section class="architecture-section page-width" id="architecture" aria-labelledby="architecture-title">
+      <div class="section-heading">
+        <div><div class="eyebrow">03 / ARCHITECTURE</div><h2 id="architecture-title">Keep the contract.<br>Change the infrastructure.</h2></div>
+        <p>The core defines document operations and their boundaries. Production identity, persistence, and collaboration belong behind explicit interfaces.</p>
+      </div>
+      <ol class="architecture-list">
+        <li><span class="architecture-number" aria-hidden="true">01</span><div><h3>Authenticate, then authorize</h3><p>Tenant and role checks belong at the service boundary. The local token fixture exercises that boundary; enterprise OIDC is a future adapter.</p></div><span class="architecture-label">IDENTITY</span></li>
+        <li><span class="architecture-number" aria-hidden="true">02</span><div><h3>Make revisions explicit</h3><p>A stale revision must produce a conflict rather than silently replace newer content. This local request model is separate from planned live Yjs collaboration.</p></div><span class="architecture-label">DOCUMENTS</span></li>
+        <li><span class="architecture-number" aria-hidden="true">03</span><div><h3>Verify the deployment profile</h3><p>Check signed profile data before relying on its configuration. Signature verification is one building block, not proof of a secure or successful deployment.</p></div><span class="architecture-label">CONFIGURATION</span></li>
+        <li><span class="architecture-number" aria-hidden="true">04</span><div><h3>Connect production services</h3><p>Cloud-neutral interfaces are the starting point for durable storage and production integrations. The reference targets below are a roadmap, not installed adapters.</p></div><span class="architecture-label">ADAPTERS</span></li>
+      </ol>
+      <p class="architecture-docs">Read the <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/design.md">architecture and API contract</a> or the <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/profile.md">deployment-profile trust model</a>.</p>
+      <p class="format-link">Working with the files themselves? The existing <a href="../#format">GPDoc Markdown reference</a> covers portable document identity and review metadata. OpenDoc adds a separate service foundation.</p>
+    </section>
+
+    <section class="cloud-section page-width" id="clouds" aria-labelledby="clouds-title">
+      <div class="section-heading">
+        <div><div class="eyebrow">04 / REFERENCE TARGETS</div><h2 id="clouds-title">One direction.<br>More than one cloud.</h2></div>
+        <p>These service mappings describe intended deployment targets. They are <strong>not deployed or tested clouds</strong>, and no cloud infrastructure is created by the quickstart.</p>
+      </div>
+      <div class="cloud-grid">
+        <article class="cloud-card">
+          <div class="cloud-title"><h3>AWS</h3><span class="tag planned">REFERENCE TARGET</span></div>
+          <dl><div><dt>Compute</dt><dd>ECS Fargate</dd></div><div><dt>Ingress</dt><dd>Application Load Balancer (ALB)</dd></div><div><dt>Database</dt><dd>RDS PostgreSQL</dd></div><div><dt>Objects</dt><dd>S3</dd></div></dl>
+        </article>
+        <article class="cloud-card">
+          <div class="cloud-title"><h3>Google Cloud</h3><span class="tag planned">REFERENCE TARGET</span></div>
+          <dl><div><dt>Compute</dt><dd>Cloud Run</dd></div><div><dt>Database</dt><dd>Cloud SQL for PostgreSQL</dd></div><div><dt>Objects</dt><dd>Google Cloud Storage (GCS)</dd></div></dl>
+        </article>
+        <article class="cloud-card">
+          <div class="cloud-title"><h3>Azure</h3><span class="tag planned">REFERENCE TARGET</span></div>
+          <dl><div><dt>Compute</dt><dd>Container Apps</dd></div><div><dt>Database</dt><dd>Azure Database for PostgreSQL Flexible Server</dd></div><div><dt>Objects</dt><dd>Blob Storage</dd></div></dl>
+        </article>
+        <article class="cloud-card">
+          <div class="cloud-title"><h3>Open-source stack</h3><span class="tag planned">REFERENCE TARGET</span></div>
+          <dl><div><dt>Compute</dt><dd>Kubernetes</dd></div><div><dt>Database</dt><dd>CloudNativePG (CNPG)</dd></div><div><dt>Objects</dt><dd>Rook Ceph</dd></div><div><dt>Identity</dt><dd>Keycloak</dd></div><div><dt>Ingress</dt><dd>Envoy Gateway</dd></div></dl>
+        </article>
+      </div>
+      <p class="caption cloud-caveat">Provider names identify architectural targets, not partnerships or certifications. Production availability, security, backup and recovery, and operating costs still require implementation and validation. <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/deployment.md">Read the deployment notes.</a></p>
+    </section>
+
+    <section class="roadmap-section page-width" id="roadmap" aria-labelledby="roadmap-title">
+      <div class="roadmap-intro"><div class="eyebrow">05 / BUILD IN THE OPEN</div><h2 id="roadmap-title">Read it. Run it.<br>Help shape what comes next.</h2><p>The next steps are concrete: durable adapters, enterprise identity, live collaboration, deployable clients, and repeatable cloud validation.</p></div>
+      <div class="resource-links">
+        <a href="https://github.com/repetere/gpdoc-components/tree/main/opendoc"><span><strong>OpenDoc source</strong><small>Implementation, interfaces, and conformance tests</small></span><span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/repetere/gpdoc-components/issues"><span><strong>Discuss the roadmap</strong><small>Propose an adapter, report an issue, or clarify a contract</small></span><span aria-hidden="true">↗</span></a>
+        <a href="../"><span><strong>GPDoc Markdown</strong><small>The existing format reference and standalone agent skill</small></span><span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="opendoc-footer">
+    <div><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▤</span> <b>OpenDoc</b></a><p>An open foundation. A clear starting point.</p></div>
+    <div class="license-note"><p>Original OpenDoc code and documentation are <a href="https://github.com/repetere/gpdoc-components/blob/main/LICENSE">MIT licensed</a>. GPDoc brand assets and marks are excluded; see the <a href="https://github.com/repetere/gpdoc-components/blob/main/assets/NOTICE.md">brand notice</a>.</p><p>This foundation does not distribute the complete GPDoc or GPEditor applications.</p></div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,103 @@
+/* OpenDoc's public reference page. Original work under the repository MIT license. */
+:root{--surface:#eff1eb;--soft:#e5e9df;--deep:#24392f;--faint:#f4f3ed}
+[hidden]{display:none!important}
+.page-width{max-width:1200px;margin:0 auto;padding-left:40px;padding-right:40px}
+.site-header{max-width:1280px}
+.brand-mark{color:var(--green)!important;font-size:25px!important}
+.site-header nav{flex-wrap:wrap;gap:12px 26px}
+.opendoc-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:48px;padding-top:82px;padding-bottom:78px;align-items:center}
+h1{font-size:clamp(46px,5.1vw,68px);line-height:1.1;letter-spacing:-2.8px;margin:23px 0}
+.hero-copy .lead{font-size:19px;line-height:1.6;margin-top:24px}
+.hero-detail{font-size:15px;color:var(--muted);max-width:510px}
+.hero-copy .actions{gap:22px;margin:28px 0 26px}
+.release-note{display:flex;align-items:center;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:11px;margin:0}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:none}
+.release-divider{color:#a6afa2;margin:0 2px}
+.blueprint{margin:0;padding:26px;background:var(--surface);border:1px solid #dce1d6;border-radius:9px;min-width:0}
+.blueprint-heading{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:9px;font-weight:650;letter-spacing:1.4px;margin-bottom:25px}
+.blueprint-layer{display:grid;grid-template-columns:24px minmax(0,1fr);gap:6px 10px;padding:18px 17px;background:#fafaf5;border:1px dashed #bdc8b9;border-radius:5px}
+.layer-index{grid-row:1 / span 2;color:#788777;font:11px/1.8 ui-monospace,monospace}
+.blueprint-layer h2{font-size:17px;line-height:1.3;letter-spacing:-.3px;margin:0 0 4px;font-weight:600}
+.blueprint-layer p{color:var(--muted);font-size:11px;margin:0}
+.blueprint-layer .tag{grid-column:2;justify-self:start;margin-top:5px}
+.blueprint-core{border:1px solid #315b46;background:var(--deep);color:#f7f8f1;box-shadow:0 6px 14px #24392f0c}
+.blueprint-core p,.blueprint-core .layer-index{color:#d0dccf}
+.blueprint-core .available{background:#385645;color:#edf6e7}
+.connector{display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:9px;letter-spacing:.3px;color:#657463;gap:4px}
+.connector span{display:block;width:1px;height:9px;background:#afbcaa}
+.blueprint figcaption{font-size:10px;line-height:1.65;color:var(--muted);margin-top:20px}
+.tag{display:inline-block;width:max-content;max-width:100%;border-radius:3px;padding:4px 7px;font-size:8px;line-height:1.5;font-weight:650;letter-spacing:1px}
+.available{background:#e0eadd;color:#34573a}
+.planned{background:#edece3;color:#686148}
+section[id]{scroll-margin-top:30px}
+.section-heading{display:grid;grid-template-columns:1.2fr 1fr;gap:48px;align-items:end;margin-bottom:34px}
+.section-heading h2{margin:14px 0 0;font-size:36px;line-height:1.22}
+.section-heading>p{margin:0 0 2px;color:var(--muted);font-size:15px;max-width:440px}
+.foundation-status{padding-top:54px;padding-bottom:74px;border-top:1px solid var(--line)}
+.status-columns{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.status-panel{padding:28px 30px;border:1px solid var(--line);border-radius:7px;min-width:0}
+.current{background:#f0f3eb}
+.future{background:#f8f6ef}
+.panel-heading{display:flex;align-items:center;justify-content:space-between;color:#6c7c65;font-size:12px}
+.future .panel-heading{color:#9c9174}
+.status-panel h3{font-size:22px;margin:20px 0 15px;font-weight:550}
+.status-panel ul{padding-left:18px;font-size:14px;line-height:1.65;margin:0;color:#445248}
+.status-panel li{padding-left:4px;margin:9px 0}
+.panel-note{font-size:12px;color:var(--muted);padding-top:17px;margin:21px 0 0;border-top:1px solid var(--line)}
+.quickstart-section{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:65px;padding-top:58px;padding-bottom:76px;border-top:1px solid var(--line)}
+.quickstart-copy h2{font-size:38px;line-height:1.2}
+.quickstart-copy p{color:var(--muted);font-size:14px}
+.text-link{display:inline-block;font-size:13px;font-weight:600;margin-top:9px}
+.quickstart-example{min-width:0;align-self:center}
+.terminal{background:var(--deep);color:#eff3e9;border:1px solid var(--deep);border-radius:7px;overflow:hidden}
+.terminal-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:17px 21px;border-bottom:1px solid #ffffff18;font-size:9px;letter-spacing:1px;color:#c4d2be;min-height:59px}
+.terminal-heading button{padding:6px 9px;font-size:10px;font-weight:500;border:1px solid #72866d;background:#ffffff08;border-radius:4px}
+.terminal-heading button:hover{background:#ffffff15}
+.terminal-heading button:disabled{opacity:.65;cursor:wait}
+.terminal pre{margin:0;padding:24px 21px 22px;font-size:12px;line-height:2.1;border-radius:0;background:none;white-space:pre-wrap;overflow-wrap:anywhere}
+.terminal pre code{white-space:pre-wrap;overflow-wrap:anywhere}
+.terminal-foot{font-size:10px;color:#bbcdb5;padding:12px 21px;border-top:1px solid #ffffff12;background:#ffffff04}
+.terminal-foot span{padding-right:7px}
+.copy-status{min-height:20px;font-size:12px;margin:5px 0 0;color:var(--green)}
+.local-note{font-size:12px;line-height:1.7;color:var(--muted);border-left:2px solid #baa779;padding-left:15px;margin-top:10px}
+.architecture-section{border-top:1px solid var(--line);padding-top:58px;padding-bottom:64px}
+.architecture-list{list-style:none;padding:0;margin:38px 0 0}
+.architecture-list li{display:grid;grid-template-columns:42px minmax(0,1fr) 135px;align-items:start;gap:22px;padding:24px 0;margin:0;border-top:1px solid var(--line)}
+.architecture-number{font:12px/2.3 ui-monospace,monospace;color:#7c8978}
+.architecture-list h3{font-size:19px;margin:0 0 6px;font-weight:550;letter-spacing:-.3px}
+.architecture-list p{font-size:14px;color:var(--muted);margin:0;max-width:710px}
+.architecture-label{font-size:9px;letter-spacing:1.1px;text-align:right;color:#697663;padding-top:8px}
+.architecture-docs{font-size:13px;color:var(--muted);margin:9px 0 22px}
+.format-link{font-size:13px;color:var(--muted);padding:20px 24px;background:var(--surface);border-radius:5px;margin:12px 0 0}
+.cloud-section{border-top:1px solid var(--line);padding-top:58px;padding-bottom:68px}
+.cloud-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.cloud-card{border:1px solid var(--line);border-radius:7px;padding:25px 27px;background:#fdfcf8;min-width:0}
+.cloud-title{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-bottom:19px;border-bottom:1px solid var(--line)}
+.cloud-title h3{font-size:21px;margin:0;font-weight:550}
+.cloud-title .tag{font-size:7px}
+.cloud-card dl{margin:14px 0 0;font-size:13px;line-height:1.65}
+.cloud-card dl>div{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;padding:6px 0}
+.cloud-card dt{color:var(--muted);font-size:12px}
+.cloud-card dd{margin:0;overflow-wrap:anywhere}
+.cloud-caveat{font-size:11px!important;max-width:850px;margin-top:20px}
+.roadmap-section{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;padding-top:57px;padding-bottom:70px;border-top:1px solid var(--line)}
+.roadmap-intro h2{font-size:34px;line-height:1.23}
+.roadmap-intro p{font-size:14px;color:var(--muted);max-width:420px}
+.resource-links{align-self:center}
+.resource-links>a{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:23px 0;border-bottom:1px solid var(--line);text-decoration:none}
+.resource-links>a:first-child{border-top:1px solid var(--line)}
+.resource-links strong{font-size:15px;font-weight:600}
+.resource-links small{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.resource-links>a:hover strong{text-decoration:underline;text-underline-offset:4px}
+.opendoc-footer{gap:55px;align-items:flex-start;padding-top:30px;padding-bottom:38px}
+.opendoc-footer .brand{font-size:21px}
+.opendoc-footer>div:first-child{flex:none}
+.opendoc-footer p{font-size:11px;line-height:1.7;margin:8px 0 0}
+.license-note{max-width:570px}
+.license-note p{margin-top:0;margin-bottom:7px}
+a:focus-visible,button:focus-visible,pre:focus-visible{outline:3px solid #bd742c;outline-offset:5px}
+@media(min-width:1280px){.opendoc-hero{gap:64px}}
+@media(max-width:1000px){.opendoc-hero{gap:28px;grid-template-columns:1.15fr 1fr}.blueprint{padding:20px}h1{font-size:52px}.quickstart-section{gap:35px}.section-heading{gap:35px}.terminal pre{font-size:11px}.roadmap-section{gap:38px}.brand-caption{display:none}}
+@media(max-width:760px){.page-width{padding-left:24px;padding-right:24px}.site-header{padding:20px 24px;gap:16px}.site-header nav{gap:12px 20px;font-size:12px}.opendoc-hero{grid-template-columns:1fr;padding-top:48px;padding-bottom:45px;gap:32px}h1{font-size:clamp(42px,8vw,62px);letter-spacing:-2px}.hero-copy .lead{font-size:18px;max-width:560px}.hero-detail{max-width:540px}.blueprint{max-width:100%;padding:22px}.blueprint-layer{grid-template-columns:24px minmax(0,1fr) auto;gap:5px 10px}.blueprint-layer .tag{grid-column:3;grid-row:1;align-self:start;margin:0}.blueprint-layer .layer-index{grid-row:auto}.blueprint-heading{margin-bottom:19px}.blueprint figcaption{max-width:420px;margin-top:15px}.section-heading{grid-template-columns:1fr;gap:20px;margin-bottom:27px}.section-heading h2{font-size:32px}.section-heading>p{max-width:560px}.status-columns{gap:16px}.status-panel{padding:23px 22px}.status-panel h3{font-size:19px}.status-panel ul{font-size:13px}.tag{font-size:7px;letter-spacing:.7px}.foundation-status,.architecture-section,.cloud-section{padding-top:40px;padding-bottom:45px}.quickstart-section{grid-template-columns:1fr;gap:28px;padding-top:40px;padding-bottom:45px}.quickstart-copy h2{font-size:32px}.quickstart-copy p{max-width:580px}.terminal pre{font-size:13px}.architecture-list li{grid-template-columns:24px minmax(0,1fr);gap:15px;padding:21px 0}.architecture-label{display:none}.cloud-card{padding:23px 20px}.cloud-title{align-items:flex-start;flex-direction:column;gap:8px}.cloud-card dl>div{grid-template-columns:67px minmax(0,1fr);gap:8px}.roadmap-section{grid-template-columns:1fr;gap:20px;padding-top:40px;padding-bottom:45px}.roadmap-intro h2{font-size:32px}.roadmap-intro p{max-width:570px}.opendoc-footer{padding:26px 24px;gap:23px;flex-wrap:wrap}}
+@media(max-width:520px){.site-header nav{width:100%;justify-content:space-between;gap:10px}.status-columns,.cloud-grid{grid-template-columns:1fr}.blueprint-layer{grid-template-columns:20px minmax(0,1fr);padding:15px}.blueprint-layer .tag{grid-column:2;grid-row:auto;margin-top:4px}.blueprint-layer .layer-index{grid-row:1 / span 2}.blueprint-layer h2{font-size:16px}.release-note{font-size:10px;gap:6px}.blueprint-heading{font-size:8px}.hero-copy .actions{gap:16px}.hero-copy .actions a{font-size:13px}.hero-copy .primary{padding:12px 16px}.status-panel h3{font-size:21px}.status-panel ul{font-size:14px}.terminal-heading{padding:15px;font-size:8px}.terminal pre{padding:20px 15px;font-size:12px}.terminal-foot{padding:12px 15px}.cloud-title{flex-direction:row;align-items:center;gap:10px}.cloud-card dl>div{grid-template-columns:78px minmax(0,1fr)}.cloud-title h3{font-size:20px}.cloud-title .tag{font-size:6px}.format-link{padding:17px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}

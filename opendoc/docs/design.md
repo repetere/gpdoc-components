@@ -1,0 +1,43 @@
+# OpenDoc foundation design
+
+OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. This first release supplies a runnable local reference API, a replaceable document-store port, explicit authentication/authorization boundaries and signed deployment-profile verification. It does not contain the full GPDoc application.
+
+## Current scope
+
+The API consumes standard `Request` objects and returns `Response` objects. A Node HTTP adapter hosts it on loopback for local evaluation. An in-memory store provides revision-checked text documents. An injected authenticator resolves a server-owned principal, tenant and role; the demo uses temporary development bearer credentials rather than enterprise identity.
+
+The signed profile module verifies administrator-pinned Ed25519 keys without network access. It is a configuration trust primitive, not an OIDC login client. No document, workspace or downloaded profile can add its own trusted key.
+
+## API contract
+
+- `GET /healthz`: process liveness, no user information.
+- `GET /api/v1/capabilities`: truthful implemented features and version.
+- `GET /api/v1/session`: authenticated principal, active tenant and server-owned role.
+- `GET /api/v1/documents`: authenticated list of documents in the active tenant.
+- `POST /api/v1/documents`: create a text document for the active tenant. Body contains `id`, `title` and `content` only.
+- `GET /api/v1/documents/{id}`: authenticated read with an ETag.
+- `PUT /api/v1/documents/{id}`: replace title/content only, using `If-Match` with the exact ETag.
+
+All document authorization is derived from the injected server authenticator. Request JSON, query parameters and document text cannot select another tenant or grant a role. Owners/editors may write; commenters/viewers may read. This first release uses tenant-level roles and does not claim document-specific sharing/ACL management. No delete endpoint is provided.
+
+The server preserves document text as an opaque UTF-8 string. It never executes embedded instructions, fetches linked resources or renders untrusted HTML. Each successful write creates a new revision. A conditional retry after a lost response may return a conflict; the client must read and reconcile, not assume mutation idempotency.
+
+## Boundaries and limits
+
+In-memory documents disappear when the process exits. The demo is not a production server, does not implement OIDC sign-in, and is restricted to loopback. API CORS is denied by default; an allowed-origin list is explicit. Authentication is independent of origin checks. JSON request size, content length, document IDs and list size are bounded. Responses do not cache credentials or document content.
+
+Production work remains: a reviewed OIDC/access-token adapter, durable PostgreSQL transaction/ACL store, native S3/GCS/Azure Blob adapters, authenticated Yjs collaboration with room fencing, managed client enrollment, cloud infrastructure, full web/extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
+
+## Decisions and alternatives
+
+| Decision | Choice | Reason |
+| --- | --- | --- |
+| Source boundary | New standalone implementation | Public format/components do not imply distribution of unrelated applications or marks. |
+| Runtime | Standard Request/Response core and Node adapter | Keeps the HTTP platform separate from document/auth ports. |
+| Persistence in first release | Explicitly volatile reference store | Demonstrates contracts without implying untested database durability. |
+| Identity in demo | Server-configured temporary credentials | Allows local authorization testing without pretending enterprise OIDC is implemented. |
+| Live editing | Roadmap only | Yjs transport needs durable sequencing, role enforcement and failure recovery. |
+
+## Traceability
+
+Requirements live in `specs.md`; tests use `@spec` identifiers. Source, fixtures and documentation use synthetic identities and endpoints. The repository's root MIT license applies to new OpenDoc code; reserved branding retains its existing notices.
