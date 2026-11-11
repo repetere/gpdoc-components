@@ -20,4 +20,19 @@ Profile tests use descriptive sub-contract tags: `OD-PROFILE-SCHEMA` and `OD-PRO
 
 ## Intent edge audit
 
-The initial implementation narrows portability to an HTTP/auth/storage contract and profile trust. Tests do not imply enterprise login, durable storage, document ACLs, distributed collaboration, encryption-at-rest guarantees, cloud deployments or air-gap operation. A later implementation must add requirements/tests before advertising those capabilities.
+The current foundation narrows portability to an HTTP/auth/storage contract and profile trust. The PostgreSQL adapter tests establish the exercised local SQL behaviors, not production backup/restore, database failover or cloud operations. Token tests establish strict pinned-key validation, not a complete enterprise login. Tests do not imply document ACLs, distributed collaboration, encryption-at-rest guarantees, cloud deployments or air-gap operation. A later implementation must add requirements/tests before advertising those capabilities.
+
+## Adapter requirements
+
+- **OD-PG-001:** Schema initialization shall be explicit and shall refuse existing schemas; constructors shall not migrate or connect implicitly.
+- **OD-PG-002:** Every PostgreSQL document operation shall bind tenant scope as a parameter and return detached snapshots.
+- **OD-PG-003:** Conditional replacement shall be transactional across connections; at most one writer may consume a revision.
+- **OD-PG-004:** Capacity limits and counters shall persist and change atomically with document mutations across connections.
+- **OD-PG-005:** Opaque document strings and revisions shall survive connection and application-process restarts.
+- **OD-PG-006:** Listing shall return the full bounded tenant list or fail explicitly rather than silently truncate when capacity is inconsistent.
+- **OD-PG-007:** Driver failures shall be sanitized; transactions shall roll back and connections shall be released or discarded appropriately.
+- **OD-PG-008:** Integration tests shall require explicit synthetic loopback targets and clean up only objects they created.
+- **OD-AUTH-001:** Access-token validation shall verify pinned RS256 signatures, the exact supported access-token type, issuer, audience and bounded temporal claims before membership lookup.
+- **OD-AUTH-002:** Only trusted server membership shall determine internal principal, active tenant and role; token roles and tenant claims shall not authorize access.
+- **OD-AUTH-003:** Keys and issuer policy shall come from operator configuration, never token URLs or payloads; validation shall not fetch keys or enroll clients.
+- **OD-AUTH-004:** Invalid credentials shall deny access, while membership outages shall remain sanitized operational failures.

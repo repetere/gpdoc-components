@@ -1,10 +1,10 @@
 # OpenDoc foundation design
 
-OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. This first release supplies a runnable local reference API, a replaceable document-store port, explicit authentication/authorization boundaries and signed deployment-profile verification. It does not contain the full GPDoc application.
+OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.2 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator and signed deployment-profile verification. It does not contain the full GPDoc application.
 
 ## Current scope
 
-The API consumes standard `Request` objects and returns `Response` objects. A Node HTTP adapter hosts it on loopback for local evaluation. An in-memory store provides revision-checked text documents. An injected authenticator resolves a server-owned principal, tenant and role; the demo uses temporary development bearer credentials rather than enterprise identity.
+The API consumes standard `Request` objects and returns `Response` objects. A Node HTTP adapter hosts it on loopback for local evaluation. An in-memory store provides revision-checked text documents. An injected authenticator resolves a server-owned principal, tenant and role; the default demo uses temporary development bearer credentials rather than enterprise identity. The optional PostgreSQL adapter implements the same port with transactions. The optional access-token adapter verifies strict RS256 `at+jwt` tokens using operator-provided JWKS and resolves membership through a trusted server callback. Neither adapter is silently enabled by the demo.
 
 The signed profile module verifies administrator-pinned Ed25519 keys without network access. It is a configuration trust primitive, not an OIDC login client. No document, workspace or downloaded profile can add its own trusted key.
 
@@ -18,7 +18,7 @@ The signed profile module verifies administrator-pinned Ed25519 keys without net
 - `GET /api/v1/documents/{id}`: authenticated read with an ETag.
 - `PUT /api/v1/documents/{id}`: replace title/content only, using `If-Match` with the exact ETag.
 
-All document authorization is derived from the injected server authenticator. Request JSON, query parameters and document text cannot select another tenant or grant a role. Owners/editors may write; commenters/viewers may read. This first release uses tenant-level roles and does not claim document-specific sharing/ACL management. No delete endpoint is provided.
+All document authorization is derived from the injected server authenticator. Request JSON, query parameters and document text cannot select another tenant or grant a role. Owners/editors may write; commenters/viewers may read. This foundation uses tenant-level roles and does not claim document-specific sharing/ACL management. No delete endpoint is provided.
 
 The server preserves document text as an opaque UTF-8 string. It never executes embedded instructions, fetches linked resources or renders untrusted HTML. Each successful write creates a new revision. A conditional retry after a lost response may return a conflict; the client must read and reconcile, not assume mutation idempotency.
 
@@ -26,7 +26,7 @@ The server preserves document text as an opaque UTF-8 string. It never executes 
 
 In-memory documents disappear when the process exits. The demo is not a production server, does not implement OIDC sign-in, and is restricted to loopback. API CORS is denied by default; an allowed-origin list is explicit. Authentication is independent of origin checks. JSON request size, content length, document IDs and list size are bounded. Responses do not cache credentials or document content.
 
-Production work remains: a reviewed OIDC/access-token adapter, durable PostgreSQL transaction/ACL store, native S3/GCS/Azure Blob adapters, authenticated Yjs collaboration with room fencing, managed client enrollment, cloud infrastructure, full web/extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
+Production work remains: complete OIDC browser/desktop login and provider validation, persistent membership/ACL administration, production PostgreSQL deployment and recovery, native S3/GCS/Azure Blob adapters, authenticated Yjs collaboration with room fencing, managed client enrollment, cloud infrastructure, full web/extension clients, backup/restore and network-isolated acceptance. Choosing a cloud target or a profile flag is not evidence of readiness.
 
 ## Decisions and alternatives
 
@@ -34,10 +34,14 @@ Production work remains: a reviewed OIDC/access-token adapter, durable PostgreSQ
 | --- | --- | --- |
 | Source boundary | New standalone implementation | Public format/components do not imply distribution of unrelated applications or marks. |
 | Runtime | Standard Request/Response core and Node adapter | Keeps the HTTP platform separate from document/auth ports. |
-| Persistence in first release | Explicitly volatile reference store | Demonstrates contracts without implying untested database durability. |
-| Identity in demo | Server-configured temporary credentials | Allows local authorization testing without pretending enterprise OIDC is implemented. |
+| Persistence | Default memory demo; explicit PostgreSQL adapter | Keeps evaluation safe while testing SQL durability and atomic writes separately. |
+| Identity | Temporary demo credentials; optional strict pinned-key token adapter | Tests signed credentials without pretending complete enterprise OIDC is implemented. |
 | Live editing | Roadmap only | Yjs transport needs durable sequencing, role enforcement and failure recovery. |
 
 ## Traceability
 
 Requirements live in `specs.md`; tests use `@spec` identifiers. Source, fixtures and documentation use synthetic identities and endpoints. The repository's root MIT license applies to new OpenDoc code; reserved branding retains its existing notices.
+
+## Adapter documentation
+
+[PostgreSQL](postgres.md) defines schema creation, persistent limits, pool ownership and integration-test safety. [Authentication](authentication.md) defines the accepted token profile, operator trust configuration and server-owned membership. [Dependencies](dependencies.md) identifies pinned packages and distribution boundaries.

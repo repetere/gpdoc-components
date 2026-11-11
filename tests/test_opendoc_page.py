@@ -82,13 +82,14 @@ class OpenDocPageTests(unittest.TestCase):
         for command in (
             'git clone https://github.com/repetere/gpdoc-components.git',
             'cd gpdoc-components/opendoc',
+            'npm ci --ignore-scripts',
             'npm test',
             'npm run demo',
         ):
             self.assertIn(command, self.page.text)
         for statement in (
             'Node.js 22',
-            'no third-party runtime dependencies',
+            'pinned adapter dependencies',
             'local temporary token',
             'not enterprise OIDC login',
             'binds to loopback',
@@ -100,14 +101,16 @@ class OpenDocPageTests(unittest.TestCase):
 
     def test_working_and_planned_capabilities_are_explicit(self):
         for statement in (
-            'AVAILABLE IN V0.1',
+            'AVAILABLE IN V0.2',
             'tenant and role checks',
             'Revision conflict handling',
             'Signed deployment-profile verification',
             'Conformance tests and cloud-neutral interfaces',
+            'PostgreSQL storage with transactional revision checks',
+            'Pinned-key RS256 access-token validation and server-owned membership',
             'PLANNED / NOT IMPLEMENTED',
             'Live Yjs collaboration and enterprise OIDC login',
-            'Production PostgreSQL and S3 / GCS / Blob storage adapters',
+            'Production database operations and S3 / GCS / Blob storage adapters',
             'Cloud infrastructure as code',
             'Rebrandable full web and VS Code clients',
             'Verified air-gap operation',

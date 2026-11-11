@@ -6,7 +6,7 @@ Open-source skills and components for GPDoc.
 
 ## OpenDoc
 
-[OpenDoc](https://repetere.github.io/gpdoc-components/opendoc/) is an original portable document-service foundation. The [runnable local reference](opendoc/README.md) includes a tenant-scoped text API, conditional revisions, signed deployment-profile verification and tests, with no third-party Node dependencies. Cloud adapters, enterprise login, live collaboration and full editor clients remain planned. See [AWS, GCP, Azure and open-source Kubernetes reference architectures](opendoc/docs/deployment.md) for the proposed production boundaries and validation requirements.
+[OpenDoc](https://repetere.github.io/gpdoc-components/opendoc/) is an original portable document-service foundation. The [runnable local reference](opendoc/README.md) includes a tenant-scoped text API, conditional revisions, signed deployment profiles, a PostgreSQL store adapter and a strict access-token authentication adapter. Cloud object-storage adapters, complete enterprise login, live collaboration and full editor clients remain planned. See [AWS, GCP, Azure and open-source Kubernetes reference architectures](opendoc/docs/deployment.md) for the proposed production boundaries and validation requirements.
 
 ## Skills
 
@@ -54,7 +54,7 @@ See the [actual agent exercise and limits](tests/agent-exercises.md), including 
 
 Run `python -m unittest discover -s tests` to validate the examples, fixture expectations, review invariants and reference links. Run `python tools/validate_gpdoc.py path/to/document.md` to check a document. JSON needs only Python 3.10+; YAML validation optionally uses PyYAML.
 
-Run `npm test --prefix opendoc` with Node.js 22+ for OpenDoc API, HTTP adapter and signed-profile checks. No dependency installation is required.
+With Node.js 22+, run `npm ci --prefix opendoc --ignore-scripts`, then `npm test --prefix opendoc` for OpenDoc API, HTTP, profile, authentication and storage-port checks. Real database checks are separate; see [PostgreSQL test setup](opendoc/docs/postgres.md).
 
 The distributable plugin is in [`plugins/gpdoc-markdown`](plugins/gpdoc-markdown). It contains only the skill, text documentation, manifests, license, privacy disclosure, and brand icon. Repository validators, tests, and website code are development resources, not part of the installed plugin.
 

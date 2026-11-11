@@ -1,6 +1,6 @@
 # Portable deployment references
 
-These are concrete architecture and configuration **targets**, not provisioned or validated cloud deployments. The current [local reference](../README.md) has volatile memory storage and development authentication. Do not deploy that demo as a production service or assume the interfaces below are already implemented.
+These are concrete architecture and configuration **targets**, not provisioned or validated cloud deployments. The default [local demo](../README.md) has volatile memory storage and development authentication. Optional [PostgreSQL](postgres.md) and [pinned-key access-token](authentication.md) adapters now exist, but cloud provisioning, complete login, identity-provider integration and production operations remain unvalidated. Do not deploy that demo as a production service or assume the interfaces below are already implemented.
 
 ## One service contract, separate provider adapters
 
@@ -27,7 +27,7 @@ Cloud hosting and user sign-in are independent choices. An AWS deployment can us
 
 ## Configuration reference
 
-The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.1. Keep the published signed client profile separate from all server credentials.
+The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.2. Keep the published signed client profile separate from all server credentials.
 
 ```yaml
 deployment:

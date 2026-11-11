@@ -1,19 +1,30 @@
 {
   "name": "@gpdoc/opendoc-foundation",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Original portable document API and deployment-profile reference foundation",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
+    "test:postgres": "node --test integration/*.test.mjs",
     "demo": "node src/demo.mjs"
   },
   "exports": {
     ".": "./src/api.mjs",
     "./profile": "./src/profile.mjs",
     "./memory-store": "./src/memory-store.mjs",
-    "./node": "./src/node-adapter.mjs"
+    "./node": "./src/node-adapter.mjs",
+    "./postgres-store": "./src/postgres-store.mjs",
+    "./access-token-auth": "./src/access-token-auth.mjs"
+  },
+  "dependencies": {
+    "jose": "6.2.17"
+  },
+  "devDependencies": {
+    "pg": "8.23.1"
   }
 }
