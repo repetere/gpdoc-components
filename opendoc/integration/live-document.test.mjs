@@ -2,6 +2,7 @@
 // @spec OD-LIVE-001 OD-LIVE-002 OD-LIVE-003 OD-LIVE-004 OD-LIVE-005
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
+import { isIP } from 'node:net';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import * as Y from 'yjs';
@@ -22,6 +23,15 @@ function target(raw) {
   return { host: '127.0.0.1', port, user: 'opendoc_test', password: 'synthetic-test-only', database: 'opendoc_test', ssl: false,
     options: '-c search_path=pg_catalog', max: 3, connectionTimeoutMillis: 3000, query_timeout: 10000, statement_timeout: 8000, idle_in_transaction_session_timeout: 8000 };
 }
+function expectedServerAddresses(raw) {
+  if (raw === undefined) return ['127.0.0.1', '::1'];
+  if (typeof raw !== 'string' || isIP(raw) === 0 || raw.includes('%')) {
+    throw new Error('The expected PostgreSQL server address must be one exact IP address');
+  }
+  // A container may report its own address behind a loopback-published port.
+  // This assertion target never changes the client's loopback connection target.
+  return [raw];
+}
 const fails = code => error => error.code === code && error.message === code && !error.cause;
 function delta(base, id, edit) {
   const doc = new Y.Doc(); doc.clientID = id; Y.applyUpdate(doc, base); const vector = Y.encodeStateVector(doc); edit(doc);
@@ -35,8 +45,27 @@ test('live integration target rejects remote, ambient, production and option-bea
     'postgres://postgres:password@127.0.0.1/opendoc_test']) assert.throws(() => target(url));
 });
 
+test('live server identity guard accepts only loopback defaults or one exact supplied IP', () => {
+  assert.deepEqual(expectedServerAddresses(undefined), ['127.0.0.1', '::1']);
+  assert.ok(!expectedServerAddresses(undefined).includes('172.18.0.2'));
+  const expected = expectedServerAddresses('172.18.0.2');
+  assert.deepEqual(expected, ['172.18.0.2']);
+  assert.ok(expected.includes('172.18.0.2'));
+  assert.ok(!expected.includes('172.18.0.3'));
+  assert.ok(!expected.includes('127.0.0.1'));
+  assert.deepEqual(expectedServerAddresses('2001:db8::2'), ['2001:db8::2']);
+  for (const invalid of ['', ' ', true, null, '*', 'localhost', '172.18.0.0/16', '172.18.0.*',
+    '172.18.0.2,172.18.0.3', '172.18.0.2\n', '[::1]', 'fe80::1%eth0', '999.1.1.1']) {
+    assert.throws(() => expectedServerAddresses(invalid));
+  }
+  assert.equal(target('postgres://opendoc_test:synthetic-test-only@127.0.0.1:55432/opendoc_test').host, '127.0.0.1');
+  assert.throws(() => target('postgres://opendoc_test:synthetic-test-only@172.18.0.2:55432/opendoc_test'));
+});
+
 test('real PostgreSQL live document authority, durable projections, fencing and WebSocket acknowledgement', { skip: !enabled, timeout: 90000 }, async t => {
-  const config = target(process.env.DATABASE_URL); const poolA = new Pool(config), poolB = new Pool(config); const schemas = [];
+  const config = target(process.env.DATABASE_URL);
+  const expectedAddresses = expectedServerAddresses(process.env.OPENDOC_PG_EXPECTED_SERVER_ADDRESS);
+  const poolA = new Pool(config), poolB = new Pool(config); const schemas = [];
   const create = async (options = {}) => {
     const schema = `opendoc_live_test_${randomBytes(12).toString('hex')}`;
     await initializePostgresLiveDocumentSchema({ pool: poolA, schema, ...options }); schemas.push(schema);
@@ -47,7 +76,7 @@ test('real PostgreSQL live document authority, durable projections, fencing and 
     finally { await Promise.all([poolA.end(), poolB.end()]); }
   });
   const identity = await poolA.query('SELECT current_database() AS database, current_user AS username, host(inet_server_addr()) AS address');
-  assert.equal(identity.rows[0].database, 'opendoc_test'); assert.equal(identity.rows[0].username, 'opendoc_test'); assert.equal(identity.rows[0].address, '127.0.0.1');
+  assert.equal(identity.rows[0].database, 'opendoc_test'); assert.equal(identity.rows[0].username, 'opendoc_test'); assert.ok(expectedAddresses.includes(identity.rows[0].address), 'The connected PostgreSQL server must report the expected address');
 
   await t.test('create/list/get preserve NUL text; stable IDs isolate tenants; reads and updates never allocate', async () => {
     const { schema, a, b } = await create();
