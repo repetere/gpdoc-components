@@ -4,6 +4,15 @@ var ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}(?![\s\S])/;
 var MAX_BYTES = 1024 * 1024;
 var sameText = (a, b) => a && b && a.title === b.title && a.content === b.content;
 var copy = (value2) => value2 == null ? value2 : structuredClone(value2);
+var validSession = (value2) => value2 && ["owner", "editor", "viewer", "commenter"].includes(value2.role) && typeof value2.principalId === "string" && typeof value2.tenantId === "string" && typeof value2.csrfToken === "string" && Number.isFinite(value2.expiresAt) && value2.expiresAt > Date.now();
+var sameOwner = (a, b) => a?.principalId === b?.principalId && a?.tenantId === b?.tenantId;
+function accessLost(message, status) {
+  const error = new Error(message);
+  error.code = "auth-lost";
+  error.retryable = false;
+  error.status = status;
+  return error;
+}
 var ApiError = class extends Error {
   constructor(status) {
     super(`HTTP ${status}`);
@@ -50,22 +59,22 @@ function createEditorController({
   };
   const isLive = () => state.active?.authority === "yjs";
   const dirty = () => Boolean(state.active && (isLive() && live ? state.live?.pending : !state.baseline || !sameText(state.active, state.baseline)));
-  function closeLive(discard = false) {
+  function closeLive(discard = false, reason = "disconnected") {
     if (discard) {
       const old = live;
       live = null;
       state.live = null;
       old?.destroy();
-    } else live?.disconnect();
+    } else live?.disconnect(reason);
   }
   const canCreate = () => state.phase === "ready" && !writeSuspended && WRITERS.has(session?.role);
-  const writable = () => Boolean(canCreate() && (!isLive() || !live && state.active.revision == null || state.live?.initialized && WRITERS.has(state.live.role) && !state.live.blocked && state.live.status !== "connecting"));
+  const writable = () => Boolean(canCreate() && (!isLive() || !live && state.active.revision == null || state.live?.initialized && WRITERS.has(state.live.role) && !state.live.blocked && !["auth-lost", "stopped"].includes(state.live.status)));
   const snapshot = () => ({ ...copy(state), dirty: dirty(), writable: writable(), canCreate: canCreate(), busy: [...busy] });
   const emit = () => {
     if (!stopped) onChange(snapshot());
   };
   function expired() {
-    closeLive();
+    closeLive(false, "auth-lost");
     clearTimeout(expiryTimer);
     epoch++;
     navigation++;
@@ -80,15 +89,19 @@ function createEditorController({
     state.conflict = null;
     state.error = "Your session ended. Your current text is still here. Download it before signing in again.";
   }
-  async function request(path, { method = "GET", body, revision, login: login2 = false } = {}) {
+  async function request(path, { method = "GET", body, revision, login: login2 = false, signal, csrfToken } = {}) {
     const controller2 = new AbortController();
     requests.add(controller2);
+    const cancel = () => controller2.abort();
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) controller2.abort();
     const timer = setTimeout(() => controller2.abort(), requestTimeoutMs);
     try {
+      controller2.signal.throwIfAborted();
       const headers = { Accept: "application/json" };
       if (body !== void 0) Object.assign(headers, {
         "Content-Type": "application/json",
-        ...login2 ? { "X-OpenDoc-Login": "1" } : { "X-OpenDoc-CSRF": session?.csrfToken ?? "" },
+        ...login2 ? { "X-OpenDoc-Login": "1" } : { "X-OpenDoc-CSRF": csrfToken ?? session?.csrfToken ?? "" },
         ...revision ? { "If-Match": `"${revision}"` } : {}
       });
       const response = await fetcher(path, {
@@ -105,6 +118,7 @@ function createEditorController({
       return await response.json();
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
       requests.delete(controller2);
     }
   }
@@ -173,7 +187,7 @@ function createEditorController({
     try {
       const result = await request("/auth/session");
       if (own !== epoch || stopped) return false;
-      if (!result || !["owner", "editor", "viewer", "commenter"].includes(result.role) || typeof result.principalId !== "string" || typeof result.tenantId !== "string" || typeof result.csrfToken !== "string" || !Number.isFinite(result.expiresAt)) throw new Error("Invalid session");
+      if (!validSession(result)) throw new Error("Invalid session");
       if (state.active && documentOwner && (documentOwner.principalId !== result.principalId || documentOwner.tenantId !== result.tenantId)) {
         expired();
         state.error = "The signed-in account changed. Download your current text, then reload this page to continue safely.";
@@ -284,6 +298,7 @@ function createEditorController({
     if (!session || !ID.test(id2)) return false;
     const permit = await allowLeave();
     if (!permit || permit !== guardSequence || !session) return false;
+    closeLive();
     const own = ++navigation, ownEpoch = epoch;
     state.loading = true;
     state.error = "";
@@ -439,6 +454,7 @@ function createEditorController({
     let candidate;
     candidate = liveFactory({ onChange(value2) {
       if (live !== candidate || stopped) return;
+      if (value2.status === "connected" && state.live?.status !== "connected") state.error = "";
       state.live = value2;
       if (value2.initialized) {
         state.active.title = value2.title;
@@ -449,6 +465,8 @@ function createEditorController({
       emit();
     }, onError(error) {
       if (live === candidate && !stopped) {
+        if (error?.status === 401 || error?.code === "identity-changed") expired();
+        else if (candidate.getState().status === "auth-lost") writeSuspended = true;
         state.error = error.message;
         emit();
       }
@@ -457,18 +475,53 @@ function createEditorController({
   }
   async function connectLive(candidate, id2) {
     const own = navigation, ownEpoch = epoch;
-    const ticket = await request("/auth/collaboration-ticket", { method: "POST", body: { documentId: id2 } });
-    if (stopped || own !== navigation || ownEpoch !== epoch) return false;
-    const path = `/api/v1/live-documents/${id2}/collaboration`;
-    if (ticket?.path !== path || typeof ticket.ticket !== "string") throw new Error("Invalid live ticket");
-    const target = new URL(path, origin);
-    target.protocol = target.protocol === "https:" ? "wss:" : "ws:";
-    return candidate.reconnect({ url: target.href, token: ticket.ticket });
+    const owner = { principalId: session.principalId, tenantId: session.tenantId };
+    return candidate.reconnect({ authorize: async ({ signal }) => {
+      const current2 = () => !stopped && !signal.aborted && own === navigation && ownEpoch === epoch;
+      if (!current2()) throw accessLost("Live connection stopped.");
+      const checkedRequest = async (path2, options) => {
+        try {
+          return await request(path2, options);
+        } catch (error) {
+          if ([401, 403, 404].includes(error.status)) throw accessLost(error.status === 401 ? "Your session ended. Download your current text before signing in again." : "Live access is no longer available. Your text is retained for download. Check your session.", error.status);
+          throw error;
+        }
+      };
+      const fresh = await checkedRequest("/auth/session", { signal });
+      if (!current2()) throw accessLost("Live connection stopped.");
+      if (!validSession(fresh)) throw accessLost("Your session could not be validated. Download your text before signing in again.", 401);
+      if (!sameOwner(owner, fresh)) throw accessLost("The signed-in account changed. Download your current text, then reload this page to continue safely.", 401);
+      if (candidate.getState().pending && !WRITERS.has(fresh.role)) throw accessLost("Write access changed. Your unconfirmed text is retained for download.", 403);
+      const ticket = await checkedRequest("/auth/collaboration-ticket", { method: "POST", body: { documentId: id2 }, signal, csrfToken: fresh.csrfToken });
+      if (!current2()) throw accessLost("Live connection stopped.");
+      const path = `/api/v1/live-documents/${id2}/collaboration`;
+      if (!sameOwner(owner, ticket?.identity) || ticket.identity.role !== fresh.role) throw accessLost("Live access changed while reconnecting. Your text is retained. Check your session.", 403);
+      if (ticket.path !== path || typeof ticket.ticket !== "string" || !Number.isFinite(ticket.expiresAt) || ticket.expiresAt <= Date.now() || ticket.expiresAt > Date.now() + 6e4 || ticket.expiresAt > fresh.expiresAt) {
+        const error = new Error("The live ticket could not be validated. Your text is retained.");
+        error.retryable = false;
+        throw error;
+      }
+      const { principalId, tenantId, role, expiresAt, csrfToken } = fresh;
+      session = { principalId, tenantId, role, expiresAt, csrfToken };
+      state.identity = { principalId, tenantId, role, expiresAt };
+      state.phase = "ready";
+      writeSuspended = false;
+      clearTimeout(expiryTimer);
+      expiryTimer = setTimeout(() => {
+        expired();
+        emit();
+      }, Math.max(0, expiresAt - Date.now()));
+      expiryTimer.unref?.();
+      const target = new URL(path, origin);
+      target.protocol = target.protocol === "https:" ? "wss:" : "ws:";
+      return { url: target.href, token: ticket.ticket, expiresAt: ticket.expiresAt };
+    } });
   }
   async function openLiveDocument(id2) {
     if (!liveFactory || !session || !ID.test(id2)) return false;
     const permit = await allowLeave();
     if (!permit || permit !== guardSequence || !session) return false;
+    closeLive();
     const own = ++navigation, ownEpoch = epoch;
     state.loading = true;
     state.error = "";
@@ -547,6 +600,7 @@ function createEditorController({
     }
     busy.add("connect");
     state.error = "";
+    state.notice = "";
     emit();
     let reconnectEpoch, reconnectNavigation, candidate;
     try {
@@ -563,7 +617,8 @@ function createEditorController({
         candidate.disconnect();
         return false;
       }
-      if (!connected) state.error = "Reconnect failed. Retained changes are still here; download a copy before leaving.";
+      if (connected) state.notice = "Live connection resumed. Changes are sent as you type; Persisted appears only after the server confirms them.";
+      if (!connected && !["auth-lost", "retrying"].includes(candidate.getState().status)) state.error = "Reconnect failed. Retained changes are still here; download a copy before leaving.";
       return connected;
     } catch (error) {
       if (stopped || reconnectEpoch !== epoch || reconnectNavigation !== navigation) return false;
@@ -576,8 +631,14 @@ function createEditorController({
       emit();
     }
   }
+  function stopLive() {
+    closeLive(false, "stopped");
+    state.notice = "Live connection stopped. Retained changes are only in this tab. Choose Reconnect to resume.";
+    emit();
+  }
   return {
     getState: snapshot,
+    stopLive,
     checkSession,
     login,
     logout,
@@ -9127,6 +9188,13 @@ function decodeStateFrame(data) {
 var MAX_STATE2 = 1024 * 1024;
 var WRITERS2 = /* @__PURE__ */ new Set(["owner", "editor"]);
 var READERS = /* @__PURE__ */ new Set([...WRITERS2, "viewer", "commenter"]);
+var LiveConnectionError = class extends Error {
+  constructor(message, code = "transport", retryable = true) {
+    super(message);
+    this.code = code;
+    this.retryable = retryable;
+  }
+};
 function encodeLiveUpdateFrame(update, sequence) {
   if (!(update instanceof Uint8Array) || update.byteLength < 2 || update.byteLength > MAX_STATE2 || !Number.isInteger(sequence) || sequence < 1 || sequence > 4294967295) throw new TypeError("Invalid live update");
   const frame = new Uint8Array(update.byteLength + 5);
@@ -9146,21 +9214,29 @@ function connectLiveCollaboration({
   onError = () => {
   },
   timeoutMs = 1e4,
-  signal
+  signal,
+  expiresAt
 } = {}) {
   const target = new URL(url);
-  if (!(target.protocol === "wss:" || target.protocol === "ws:" && ["127.0.0.1", "localhost", "[::1]"].includes(target.hostname)) || target.username || target.password || target.search || target.hash || !/^\/api\/v1\/live-documents\/[A-Za-z0-9][A-Za-z0-9_-]{0,63}\/collaboration$/.test(target.pathname) || typeof token !== "string" || !/^[\x21-\x7e]{1,8192}$/.test(token) || !(doc2 instanceof Doc) || typeof WebSocketImpl !== "function" || typeof onState !== "function" || typeof onError !== "function" || signal !== void 0 && !(signal instanceof AbortSignal) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 3e4) throw new TypeError("Invalid live connection");
-  if (signal?.aborted) return Promise.reject(new Error("Live connection cancelled."));
+  if (!(target.protocol === "wss:" || target.protocol === "ws:" && ["127.0.0.1", "localhost", "[::1]"].includes(target.hostname)) || target.username || target.password || target.search || target.hash || !/^\/api\/v1\/live-documents\/[A-Za-z0-9][A-Za-z0-9_-]{0,63}\/collaboration$/.test(target.pathname) || typeof token !== "string" || !/^[\x21-\x7e]{1,8192}$/.test(token) || !(doc2 instanceof Doc) || typeof WebSocketImpl !== "function" || typeof onState !== "function" || typeof onError !== "function" || expiresAt !== void 0 && (!Number.isFinite(expiresAt) || expiresAt > Date.now() + 6e4) || signal !== void 0 && !(signal instanceof AbortSignal) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 3e4) throw new TypeError("Invalid live connection");
+  if (signal?.aborted) return Promise.reject(new LiveConnectionError("Live connection cancelled.", "stopped", false));
+  if (expiresAt !== void 0 && expiresAt <= Date.now()) return Promise.reject(new LiveConnectionError("Live ticket expired.", "ticket-expired"));
   return new Promise((resolve, reject) => {
     let credential = token;
     token = null;
+    const monotonicExpiry = expiresAt === void 0 ? Infinity : performance.now() + Math.max(0, expiresAt - Date.now());
     const ws = new WebSocketImpl(url);
     ws.binaryType = "arraybuffer";
     const remote = Object.freeze({ transport: "opendoc-yjs-2" });
     let closed = false, ready = false, settled = false, role = null, revision = 0;
     let changed = replay ? 1 : 0, acknowledged = 0, sequence = 0, inFlight = null;
-    let timer = setTimeout(() => fail(new Error("Live connection timed out.")), timeoutMs);
+    let timer = setTimeout(() => fail(new LiveConnectionError("Live connection timed out.")), timeoutMs);
     timer.unref?.();
+    const expiryTimer = expiresAt === void 0 ? null : setTimeout(() => fail(new LiveConnectionError("Live ticket expired.", "ticket-expired")), Math.max(0, expiresAt - Date.now()));
+    expiryTimer?.unref?.();
+    function checkExpiry() {
+      if (expiresAt !== void 0 && (Date.now() >= expiresAt || performance.now() >= monotonicExpiry)) throw new LiveConnectionError("Live ticket expired.", "ticket-expired");
+    }
     const state = () => ({ connected: ready && !closed, pending: changed !== acknowledged || Boolean(inFlight), role, revision });
     const emit = () => {
       try {
@@ -9186,11 +9262,12 @@ function connectLiveCollaboration({
         ws.close(1e3, "Client closing.");
         if (!settled) {
           settled = true;
-          reject(new Error("Live connection cancelled."));
+          reject(new LiveConnectionError("Live connection cancelled.", "stopped", false));
         }
       },
       sync() {
         if (!ready || closed) throw new Error("Not connected.");
+        checkExpiry();
         ws.send('{"type":"sync"}');
       }
     };
@@ -9198,6 +9275,7 @@ function connectLiveCollaboration({
       closed = true;
       credential = null;
       clearTimeout(timer);
+      clearTimeout(expiryTimer);
       doc2.off("update", local);
       signal?.removeEventListener("abort", abort);
     }
@@ -9220,16 +9298,17 @@ function connectLiveCollaboration({
     }
     function send() {
       if (!ready || closed || inFlight || changed === acknowledged) return;
+      checkExpiry();
       if (!WRITERS2.has(role)) {
-        fail(new Error("Write access changed. Retained text was not submitted."));
+        fail(new LiveConnectionError("Write access changed. Retained text was not submitted.", "auth-lost", false));
         return;
       }
-      if (ws.bufferedAmount > 2 * MAX_STATE2 || sequence === 4294967295) throw new Error("Live connection limit reached.");
+      if (ws.bufferedAmount > 2 * MAX_STATE2 || sequence === 4294967295) throw new LiveConnectionError("Live connection limit reached.", "limit", false);
       const update = encodeStateAsUpdate(doc2);
       inFlight = { sequence: ++sequence, changed };
       ws.send(encodeLiveUpdateFrame(update, sequence));
       clearTimeout(timer);
-      timer = setTimeout(() => fail(new Error("Persistence acknowledgement timed out.")), timeoutMs);
+      timer = setTimeout(() => fail(new LiveConnectionError("Persistence acknowledgement timed out.")), timeoutMs);
       timer.unref?.();
     }
     function local(_update, origin) {
@@ -9238,8 +9317,8 @@ function connectLiveCollaboration({
       emit();
       try {
         send();
-      } catch {
-        fail(new Error("Live update could not be sent. Your text is retained."));
+      } catch (error) {
+        fail(error instanceof LiveConnectionError ? error : new LiveConnectionError("Live update could not be sent. Your text is retained."));
       }
     }
     doc2.on("update", local);
@@ -9251,22 +9330,24 @@ function connectLiveCollaboration({
     ws.addEventListener("open", () => {
       if (!closed) {
         try {
+          checkExpiry();
           ws.send(JSON.stringify({ type: "authenticate", token: credential }));
           credential = null;
-        } catch {
-          fail(new Error("Live authentication could not be sent."));
+        } catch (error) {
+          fail(error instanceof LiveConnectionError ? error : new LiveConnectionError("Live authentication could not be sent."));
         }
       }
     });
     ws.addEventListener("message", (event) => {
       if (closed) return;
       try {
+        checkExpiry();
         if (typeof event.data === "string") {
           const message = JSON.parse(event.data);
           if (role === null) {
             if (!message || Object.keys(message).length !== 3 || message.type !== "ready" || message.protocol !== "opendoc-yjs-2" || !READERS.has(message.role)) throw new Error("Invalid handshake.");
             role = message.role;
-            if (replay && !WRITERS2.has(role)) throw new Error("Write access changed.");
+            if (replay && !WRITERS2.has(role)) throw new LiveConnectionError("Write access changed. Retained text was not submitted.", "auth-lost", false);
             return;
           }
           if (!ready || !message || Object.keys(message).length !== 3 || message.type !== "ack" || !inFlight || message.sequence !== inFlight.sequence || !Number.isSafeInteger(message.revision) || message.revision < 1 || message.revision > revision) throw new Error("Invalid acknowledgement.");
@@ -9291,12 +9372,21 @@ function connectLiveCollaboration({
           resolve(session);
         }
         emit();
-      } catch {
-        fail(new Error("Live sync was not confirmed. Retained text is unchanged by any REST snapshot."));
+      } catch (error) {
+        fail(error instanceof LiveConnectionError ? error : new LiveConnectionError("Live sync was not confirmed. Retained text is unchanged by any REST snapshot.", "protocol", false));
       }
     });
-    ws.addEventListener("error", () => fail(new Error("Live connection failed.")));
-    ws.addEventListener("close", () => fail(new Error("Live connection closed. Check your session and reconnect.")));
+    ws.addEventListener("error", () => fail(new LiveConnectionError("Live connection failed.")));
+    ws.addEventListener("close", (event) => {
+      const expired = expiresAt !== void 0 && (Date.now() >= expiresAt || performance.now() >= monotonicExpiry);
+      const denied = event.code === 1008 && !expired;
+      const terminal = denied || [1002, 1003, 1007, 1009].includes(event.code);
+      fail(new LiveConnectionError(
+        denied ? "Live access ended. Check your session before reconnecting." : "Live connection closed. Your text is retained.",
+        expired ? "ticket-expired" : denied ? "auth-lost" : terminal ? "protocol" : "transport",
+        !terminal
+      ));
+    });
   });
 }
 
@@ -9305,6 +9395,9 @@ var MAX_STATE3 = 1024 * 1024;
 var MAX_CONTENT = 256 * 1024;
 var WRITERS3 = /* @__PURE__ */ new Set(["owner", "editor"]);
 var LOCAL = Object.freeze({ editor: "opendoc" });
+var RETRY_DELAYS = [500, 1500, 3e3];
+var STABLE_MS = 15e3;
+var MIN_TICKET_MS = 250;
 function difference(before, after) {
   let start = 0, end = 0;
   while (start < before.length && start < after.length && before[start] === after[start]) start++;
@@ -9333,7 +9426,8 @@ function createLiveDocument({
 } = {}) {
   const doc2 = new Doc();
   let transport = null, abort = null, generation = 0, stopped = false, initialized = false;
-  let retained = null;
+  let retained = null, authorize = null, retryTimer = null, renewalTimer = null, stableTimer = null;
+  let retries = 0, retryAt = null;
   let status = "disconnected", pending = false, role = null, revision = 0, selection = null, composing2 = null;
   const current2 = () => ({
     title: retained?.title ?? doc2.getText("title").toString(),
@@ -9344,7 +9438,9 @@ function createLiveDocument({
     role,
     revision,
     initialized,
-    selection
+    selection,
+    retries,
+    retryAt
   });
   const emit = () => {
     if (!stopped) onChange(current2());
@@ -9370,45 +9466,83 @@ function createLiveDocument({
     if (transaction.origin === LOCAL && transaction.changed.size) pending = true;
     emit();
   });
-  function disconnect() {
+  function cancelAttempt() {
     generation++;
+    clearTimeout(retryTimer);
+    clearTimeout(renewalTimer);
+    clearTimeout(stableTimer);
+    retryTimer = renewalTimer = stableTimer = null;
+    retryAt = null;
     abort?.abort();
     abort = null;
     transport?.close();
     transport = null;
-    status = "disconnected";
+  }
+  function disconnect(reason = "disconnected") {
+    cancelAttempt();
+    authorize = null;
+    status = reason;
     emit();
   }
-  async function reconnect({ url, token }) {
-    if (stopped || retained) return false;
-    disconnect();
+  function failed(error, own) {
+    if (stopped || own !== generation) return;
+    cancelAttempt();
+    if (error?.code === "auth-lost" || [401, 403, 404].includes(error?.status)) {
+      authorize = null;
+      status = "auth-lost";
+    } else if (authorize && error?.retryable !== false && retries < RETRY_DELAYS.length) {
+      const delay = RETRY_DELAYS[retries++];
+      status = "retrying";
+      retryAt = Date.now() + delay;
+      const expected = generation;
+      retryTimer = setTimeout(() => {
+        if (!stopped && expected === generation) void attempt("retrying");
+      }, delay);
+      retryTimer.unref?.();
+    } else {
+      authorize = null;
+      status = error?.retryable === false ? "stopped" : "disconnected";
+    }
+    const failedGeneration = generation;
+    emit();
+    if (!stopped && failedGeneration === generation) onError(error);
+  }
+  async function attempt(mode, credential) {
+    cancelAttempt();
     const own = generation;
     abort = new AbortController();
-    status = "connecting";
+    status = mode;
     emit();
+    if (stopped || own !== generation) return false;
     try {
+      const ticket = credential ?? await authorize({ signal: abort.signal });
+      if (stopped || own !== generation) return false;
+      let remaining;
+      if (authorize) {
+        remaining = ticket?.expiresAt - Date.now();
+        if (!Number.isFinite(remaining) || remaining < MIN_TICKET_MS || remaining > 6e4) {
+          const error = new Error("Live ticket expiry is invalid or too short. Check your session before reconnecting.");
+          error.retryable = false;
+          throw error;
+        }
+      }
       const next = await connect({
-        url,
-        token,
+        ...ticket,
         doc: doc2,
         replay: pending,
         signal: abort.signal,
         WebSocketImpl,
         onState(value2) {
           if (stopped || own !== generation) return;
-          role = value2.role;
-          revision = value2.revision;
+          if (["owner", "editor", "viewer", "commenter"].includes(value2.role)) role = value2.role;
+          if (value2.revision >= 1) revision = value2.revision;
           pending = value2.pending;
-          status = value2.connected ? "connected" : "disconnected";
+          if (value2.connected) status = "connected";
           initialized ||= value2.connected;
           emit();
         },
         onError(error) {
-          if (stopped || own !== generation) return;
-          status = "disconnected";
-          transport = null;
-          emit();
-          onError(error);
+          failed(error, own);
         }
       });
       if (stopped || own !== generation) {
@@ -9422,18 +9556,38 @@ function createLiveDocument({
       pending = next.pending;
       status = "connected";
       emit();
+      if (stopped || own !== generation) return false;
+      if (authorize) {
+        stableTimer = setTimeout(() => {
+          if (own === generation) {
+            retries = 0;
+            emit();
+          }
+        }, STABLE_MS);
+        stableTimer.unref?.();
+        const delay = Math.max(0, ticket.expiresAt - Date.now() - Math.min(5e3, remaining * 0.2));
+        renewalTimer = setTimeout(() => {
+          if (!stopped && own === generation) void attempt("renewing");
+        }, delay);
+        renewalTimer.unref?.();
+      }
       return true;
     } catch (error) {
-      if (!stopped && own === generation) {
-        status = "disconnected";
-        emit();
-        onError(error);
-      }
+      failed(error, own);
       return false;
     }
   }
+  async function reconnect(options) {
+    if (stopped || retained) return false;
+    const expected = generation + 1;
+    disconnect();
+    if (stopped || retained || expected !== generation) return false;
+    retries = 0;
+    authorize = typeof options.authorize === "function" ? options.authorize : null;
+    return attempt("connecting", authorize ? void 0 : options);
+  }
   function validate(changes) {
-    if (!initialized || !WRITERS3.has(role) || stopped || status === "connecting") return false;
+    if (!initialized || !WRITERS3.has(role) || stopped) return false;
     for (const [key, value2] of Object.entries(changes)) if (!["title", "content"].includes(key) || typeof value2 !== "string" || !value2.isWellFormed() || key === "title" && value2.length > 200 || key === "content" && new TextEncoder().encode(value2).length > MAX_CONTENT) return false;
     const trial = new Doc();
     try {
@@ -9444,12 +9598,12 @@ function createLiveDocument({
       trial.destroy();
     }
   }
-  function edit(changes) {
+  function edit(changes, preserveComposition = false) {
     if (!validate(changes)) {
-      if (!stopped && initialized && WRITERS3.has(role) && Object.entries(changes).every(([key, value2]) => ["title", "content"].includes(key) && typeof value2 === "string" && value2.length <= 262144)) {
+      if (!stopped && initialized && (WRITERS3.has(role) || preserveComposition) && Object.entries(changes).every(([key, value2]) => ["title", "content"].includes(key) && typeof value2 === "string" && value2.length <= 262144)) {
         retained = { title: doc2.getText("title").toString(), content: doc2.getText("content").toString(), ...changes };
         pending = true;
-        disconnect();
+        disconnect("stopped");
         emit();
       }
       onError(new Error("Live limit or invalid text reached. Your text is retained in this tab for download; it was not sent. Open a new document after downloading."));
@@ -9485,7 +9639,7 @@ function createLiveDocument({
       let next = target;
       for (const [start, count] of removals.reverse()) next = next.slice(0, start) + next.slice(start + count);
       next = next.slice(0, a.index) + delta.inserted + next.slice(a.index);
-      return edit({ [field]: next });
+      return edit({ [field]: next }, true);
     } finally {
       base.destroy();
     }
@@ -9587,11 +9741,15 @@ function render(state) {
   $2("document-panel").setAttribute("aria-busy", String(state.loading));
   show("read-only", !state.writable);
   text2("read-only", live && state.active.revision && !state.live && signedIn ? "Connect to start live editing. Your document has been created." : "Editing is unavailable for this session. You can read and download your text, but cannot send changes.");
-  text2("save-state", live ? state.loading ? "Opening live document…" : writing ? "Creating live document…" : state.live?.status === "connecting" ? "Connecting…" : state.live?.status === "connected" ? state.dirty ? "Pending server confirmation" : "Persisted on server" : state.live ? state.dirty ? "Disconnected · changes in this tab only" : "Disconnected · last changes persisted" : state.active.revision ? "Created · connect to edit" : "New live draft" : state.loading ? "Opening document…" : writing ? "Saving…" : state.conflict ? "Review needed" : state.dirty ? "Unsaved changes" : "All changes saved");
+  const liveStatus = state.live?.status;
+  const liveProgress = liveStatus === "renewing" ? "Renewing live access…" : liveStatus === "retrying" ? `Reconnecting · attempt ${state.live.retries} of 3` : liveStatus === "auth-lost" ? "Live access ended · text retained in this tab" : liveStatus === "stopped" ? "Live connection stopped · text retained in this tab" : null;
+  show("stop-live", live && Boolean(state.live) && ["connected", "connecting", "renewing", "retrying"].includes(liveStatus));
+  $2("stop-live").disabled = waiting;
+  text2("save-state", live ? liveProgress || (state.loading ? "Opening live document…" : writing ? "Creating live document…" : state.live?.status === "connecting" ? "Connecting…" : state.live?.status === "connected" ? state.dirty ? "Pending server confirmation" : "Persisted on server" : state.live ? state.dirty ? "Disconnected · changes in this tab only" : "Disconnected · last changes persisted" : state.active.revision ? "Created · connect to edit" : "New live draft") : state.loading ? "Opening document…" : writing ? "Saving…" : state.conflict ? "Review needed" : state.dirty ? "Unsaved changes" : "All changes saved");
   text2("revision", state.active.revision ? `${live ? "Live revision" : "Revision"} ${state.active.revision}` : "New draft");
   show("live-help", live);
-  text2("live-help", "Live changes are sent while connected. Pending changes exist only in this tab until confirmed by the server. Download before closing or signing in again.");
-  $2("save").disabled = live && state.active.revision ? waiting || writing || state.loading || state.busy.includes("connect") || state.live?.status === "connected" : !state.writable || !state.dirty || writing || waiting || state.loading || Boolean(state.conflict);
+  text2("live-help", "Live access renews automatically. Interrupted connections retry up to three times. Pending changes stay only in this tab until the server confirms them. Download before closing or signing in again.");
+  $2("save").disabled = live && state.active.revision ? waiting || writing || state.loading || state.busy.includes("connect") || ["connected", "connecting", "renewing", "retrying"].includes(state.live?.status) : !state.writable || !state.dirty || writing || waiting || state.loading || Boolean(state.conflict);
   text2("save", live ? writing ? "Creating…" : state.active.revision ? state.live ? "Reconnect" : "Connect" : "Create live document" : writing ? "Saving…" : state.baseline ? "Save changes" : "Create document");
   const words = state.active.content.trim().split(/\s+/u).filter(Boolean).length;
   text2("word-count", `${words.toLocaleString()} ${words === 1 ? "word" : "words"}`);
@@ -9632,6 +9790,7 @@ $2("new-live-document").addEventListener("click", async () => {
 $2("sign-out").addEventListener("click", () => controller.logout());
 $2("check-session").addEventListener("click", () => controller.checkSession());
 $2("refresh").addEventListener("click", () => controller.refreshDocuments());
+$2("stop-live").addEventListener("click", () => controller.stopLive());
 $2("save").addEventListener("click", () => controller.save());
 for (const field of ["title", "content"]) {
   const element2 = $2(`document-${field}`);
@@ -9673,6 +9832,7 @@ window.addEventListener("beforeunload", (event) => {
     event.returnValue = "";
   }
 });
+window.addEventListener("pagehide", () => controller.destroy());
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });

@@ -101,7 +101,9 @@ class OpenDocPageTests(unittest.TestCase):
 
     def test_working_and_planned_capabilities_are_explicit(self):
         for statement in (
-            'AVAILABLE IN V0.6',
+            'AVAILABLE IN V0.7',
+            'Automatic live-ticket renewal and bounded reconnect',
+            'not a durable offline queue',
             'tenant and role checks',
             'Revision conflict handling',
             'Signed deployment-profile verification',

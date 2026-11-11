@@ -10,9 +10,9 @@ async function eventually(predicate, message = 'Expected state') {
   for (let n = 0; n < 200; n++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 10)); }
   assert.fail(message);
 }
-async function fixture(t) {
+async function fixture(t, options) {
   const before = process.env.OPENDOC_SYNTHETIC_EDITOR; process.env.OPENDOC_SYNTHETIC_EDITOR = '1';
-  const app = await startSyntheticEditorDemo();
+  const app = await startSyntheticEditorDemo(options);
   if (before === undefined) delete process.env.OPENDOC_SYNTHETIC_EDITOR; else process.env.OPENDOC_SYNTHETIC_EDITOR = before;
   t.after(() => app.close()); return app;
 }
@@ -22,14 +22,22 @@ async function login(app, subject = 'synthetic-editor') {
   const callback = await authorizeAtProvider({ provider: app.provider, jar, authorizationUrl: (await result.json()).authorizationUrl, subject });
   assert.equal((await jar.fetch(callback)).status, 303); return jar;
 }
-function client(t, app, jar, id = 'created-live') {
-  const calls = [];
-  class OriginSocket extends WebSocket { constructor(url) { super(url, { origin: app.origin }); } }
+function client(t, app, jar, id = 'created-live', { dropAck = () => false } = {}) {
+  const calls = [], sockets = [];
+  class OriginSocket extends WebSocket {
+    constructor(url) { super(url, { origin: app.origin }); sockets.push(this); }
+    addEventListener(type, listener, options) {
+      return super.addEventListener(type, type === 'message' ? event => {
+        if (typeof event.data === 'string' && JSON.parse(event.data).type === 'ack' && dropAck()) return;
+        listener(event);
+      } : listener, options);
+    }
+  }
   const controller = createEditorController({ origin: app.origin, newId: () => id, confirmDiscard: async () => true,
     liveFactory: options => createLiveDocument({ ...options, WebSocketImpl: OriginSocket }),
     fetch: (path, init) => { calls.push({ path, method: init.method }); return jar.fetch(`${app.origin}${path}`, { ...init, headers: { ...init.headers,
       ...(['POST', 'PUT'].includes(init.method) ? { origin: app.origin } : {}) } }); } });
-  t.after(() => controller.destroy()); return { controller, calls };
+  t.after(() => controller.destroy()); return { controller, calls, sockets };
 }
 test('authenticated live create, two-client edits, delete, reconnect, reopen and explicit REST separation', async t => {
   const app = await fixture(t), jar = await login(app);
@@ -91,4 +99,44 @@ test('live and standalone tickets cannot cross route namespaces', async t => {
   assert.equal(await authorized(standalone.ticket, '/api/v1/live-documents/live-welcome/collaboration'), null);
   assert.equal(await authorized(live.ticket, '/api/v1/collaboration/live-welcome'), null);
   assert.equal((await authorized(live.ticket, '/api/v1/live-documents/live-welcome/collaboration')).role, 'editor');
+});
+
+test('short-lived tickets renew automatically across multiple expirations with fresh session checks', async t => {
+  const app = await fixture(t, { authLimits: { ticketTtlMs: 1200 }, collaborationLimits: { revalidationIntervalMs: 100 } });
+  const { controller, calls, sockets } = client(t, app, await login(app));
+  await controller.checkSession(); assert.equal(await controller.openLiveDocument('live-welcome'), true);
+  await eventually(() => sockets.length >= 2 && controller.getState().live.status === 'connected', 'First automatic renewal');
+  controller.edit({ content: 'Persisted after renewal 😀' }); await eventually(() => !controller.getState().dirty);
+  await eventually(() => sockets.length >= 3 && controller.getState().live.status === 'connected', 'Second automatic renewal');
+  assert.equal(controller.getState().active.content, 'Persisted after renewal 😀');
+  const attempts = calls.filter(call => call.path === '/auth/collaboration-ticket').length;
+  assert.ok(calls.filter(call => call.path === '/auth/session').length >= attempts + 1);
+  assert.equal(attempts, sockets.length); assert.equal(controller.getState().error, '');
+});
+test('automatic reconnect replays a committed delete with a lost ACK, without duplicating or losing text', async t => {
+  const app = await fixture(t), jar = await login(app); let drop = true;
+  const { controller, sockets } = client(t, app, jar, 'created-live', { dropAck: () => drop });
+  await controller.checkSession(); await controller.openLiveDocument('live-welcome');
+  const expected = controller.getState().active.content.slice(1); controller.edit({ content: expected });
+  await eventually(() => controller.getState().active.revision >= 2);
+  assert.equal(controller.getState().dirty, true); drop = false; sockets[0].terminate();
+  await eventually(() => sockets.length === 2 && !controller.getState().dirty && controller.getState().live.status === 'connected');
+  assert.equal(controller.getState().active.content, expected);
+  assert.equal((await app.liveStore.get('synthetic-team', 'live-welcome')).content, expected);
+});
+test('automatic retry stops on revoked membership or write downgrade and retains unsent text', async t => {
+  for (const revoke of [false, true]) {
+    const app = await fixture(t), { controller, sockets, calls } = client(t, app, await login(app));
+    await controller.checkSession(); await controller.openLiveDocument('live-welcome');
+    const before = controller.getState().active.content;
+    sockets[0].terminate(); await eventually(() => controller.getState().live.status === 'retrying');
+    assert.equal(controller.edit({ content: 'Private offline changes' }), true);
+    if (revoke) app.memberships.delete('synthetic-editor');
+    else app.memberships.set('synthetic-editor', { principalId: 'mapped-editor', tenantId: 'synthetic-team', role: 'viewer' });
+    await eventually(() => controller.getState().live.status === 'auth-lost');
+    assert.equal(controller.getState().active.content, 'Private offline changes'); assert.equal(controller.getState().dirty, true);
+    assert.equal(controller.getState().writable, false); assert.equal(sockets.length, 1);
+    assert.equal(calls.filter(call => call.path === '/auth/collaboration-ticket').length, 1);
+    assert.equal((await app.liveStore.get('synthetic-team', 'live-welcome')).content, before);
+  }
 });

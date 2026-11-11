@@ -45,27 +45,30 @@ Serve the WebSocket route through the same exact origin as the browser applicati
 
 - **Persisted on server:** no local edits remain without a matching durable server acknowledgement. This is not a backup, replication, or recovery guarantee beyond the selected store.
 - **Pending server confirmation:** the local Yjs document contains edits not yet acknowledged. Receiving a state snapshot alone never clears this status, including delete-only edits.
+- **Renewing live access:** the previous transport has closed while the same session and document permission are revalidated for a fresh short-lived ticket. Edits and IME composition remain in memory.
+- **Reconnecting · attempt N of 3:** a transient connection or acknowledgement failure is being retried. Retained work is not confirmed until a matching durable acknowledgement arrives.
+- **Live access ended:** session, account, tenant, or grant validation failed. Automatic attempts stop and unconfirmed text remains available read-only for download.
+- **Live connection stopped:** the user chose Stop live connection, or a terminal protocol/limit problem prevented safe continuation. Choose Reconnect explicitly after addressing the problem.
 - **Disconnected · changes in this tab only:** retained pending work has no active transport. It is not durable. Download a copy before closing the tab.
 - **Disconnected · last changes persisted:** previously submitted local work was confirmed, but further remote edits are not being received.
 
-While connected, edits are transmitted automatically. The transport allows only one unacknowledged update at a time and coalesces later edits into the current in-memory Yjs state. A ten-second acknowledgement timeout disconnects without declaring success. Reconnect is explicit: it rechecks the authenticated session, obtains a fresh route-bound ticket, merges the current server Yjs state with the retained Yjs document, and replays retained changes. It never seeds a reopened document from a JSON snapshot.
+While connected, edits are transmitted automatically. The transport allows only one unacknowledged update at a time and coalesces later edits into the current in-memory Yjs state. A ten-second acknowledgement timeout closes the transport without declaring success. Automatic reconnect merges authoritative server Yjs state into the retained Yjs document and replays unconfirmed updates, including delete-only changes. It never seeds a reopened document from a JSON snapshot. A committed update with a lost acknowledgement can be safely replayed as a Yjs update; a state echo alone never acknowledges it.
 
-Browser collaboration tickets have an absolute maximum lifetime of **60 seconds**
-(the host can tighten it). The current transport revalidates that expiry for the
-whole connection, not just admission, so a tab will disconnect at the next write
-or idle check after expiry. Choose Reconnect to obtain a fresh ticket and resume;
-there is no automatic renewal in this milestone. This is an evaluation limit,
-not a seamless long-running collaborative session.
+Browser collaboration tickets have an absolute maximum lifetime of **60 seconds** (the host can tighten it). Before expiry, the browser closes the old transport, fetches `/auth/session`, validates the original principal and tenant, and obtains a new route-bound ticket using that exact session's CSRF value. The ticket's identity, role, route, and expiry are checked before any new socket is opened. The BFF and collaboration server remain responsible for revalidating membership and session validity, including every write and idle revalidation. Renewal neither reuses a ticket nor extends its lifetime or the login session.
 
-Pending state is bound to its original principal, tenant, and document. Account or tenant changes cannot reuse the retained document under a new identity. Viewer/commenter sessions never submit or replay updates. Session expiry, failed authorization, and role downgrades preserve the text read-only where necessary. Checking the session closes the old live transport; choose Reconnect to resume it.
+Rollover normally starts five seconds before ticket expiry, or 20% of the remaining lifetime for shorter tickets. The client also enforces the original absolute expiry and an elapsed-time deadline before authentication, updates, and received state. Delayed browser timers or a local wall-clock rollback cannot authorize old-ticket writes. Tickets with less than 250 milliseconds remaining are rejected rather than causing a renewal storm. Extremely short operator ticket limits may therefore require manual reconnection or a less restrictive limit.
 
-Leaving pending work requires a confirmation. An in-flight write may already have reached the server, so leaving is not an undo. An uncertain create is never blindly resubmitted: download the draft and inspect the live library. There is no background retry, browser-storage draft cache, or promise that closing an unconfirmed tab is safe.
+Transient failures use at most three automatic retries with delays of 500, 1500, and 3000 milliseconds. Each attempt revalidates the session and obtains a new ticket. The failure budget resets only after 15 seconds of uninterrupted connection, so repeated short-lived connections cannot loop indefinitely. A terminal authorization, identity, protocol, or size failure stops automatic retries. Exhausting the budget leaves the document disconnected until explicit Reconnect. No online/visibility event silently restarts a stopped connection.
+
+Pending state is bound to its original principal, tenant, and document. Account or tenant changes cannot reuse the retained document under a new identity. Viewer/commenter sessions never submit or replay updates. Session expiry, failed authorization, and role downgrades preserve the text read-only where necessary. Unfinished IME text remains pending across renewal, and a composition completed after a downgrade is retained for download instead of being submitted. Checking the session closes the old live transport; choose Reconnect to resume it.
+
+Leaving pending work requires a confirmation. An in-flight write may already have reached the server, so leaving is not an undo. An uncertain create is never blindly resubmitted: download the draft and inspect the live library. The Stop live connection button, explicit session check, navigation, login/logout, and page teardown cancel renewal/retry timers and abort outstanding authorization requests. Generation checks reject late responses even if a request ignores abort. There is no browser-storage draft cache, durable offline queue, or promise that closing an unconfirmed tab is safe. Automatic retry is limited to the current open live document; uncertain document creation is never retried automatically.
 
 ## Editing limits and behavior
 
 The initial editor supports plain text and Markdown, with separate Y.Text title/content fields. It does not render document HTML. Title is limited to 200 UTF-16 code units, content to 256 KiB UTF-8, and encoded Yjs state to 1 MiB, including history. Long editing histories can reach the state limit before the visible text limit. Rejected bounded input is retained read-only for download rather than sent or silently replaced. Start a new document after saving that copy.
 
-Textarea changes apply a bounded prefix/suffix edit, preserving unchanged CRDT characters. Boundaries never split a UTF-16 surrogate pair. IME composition anchors to the pre-composition CRDT state and retains concurrent remote insertions. Remote selection positions use Yjs relative positions. This is not a rich-text editor: no awareness cursors, presence roster, rich-text marks, comments UI, undo UI, offline disk queue, or automatic reconnection is provided.
+Textarea changes apply a bounded prefix/suffix edit, preserving unchanged CRDT characters. Boundaries never split a UTF-16 surrogate pair. IME composition anchors to the pre-composition CRDT state and retains concurrent remote insertions. Remote selection positions use Yjs relative positions. This is not a rich-text editor: no awareness cursors, presence roster, rich-text marks, comments UI, undo UI, or offline disk queue is provided.
 
 ## Local, reproducible browser bundle
 
@@ -77,7 +80,7 @@ Yjs's lib0 configuration dependency normally probes browser persistent storage. 
 
 ## Verification
 
-`npm test` includes real synthetic OIDC + HTTP/WebSocket editor integration, two-client concurrent changes, deletion, offline replay, reopen, read-only roles, expired accounts, ticket namespace binding, stale reconnect responses, Unicode/IME cases, bounded input, explicit acknowledgement semantics, coalescing, and all existing REST editor tests. Automated controller tests do not replace actual browser checks for cookies, CSP, focus, selection, downloads, and navigation prompts.
+`npm test` includes real synthetic OIDC + HTTP/WebSocket editor integration, two-client concurrent changes, deletion, offline replay, reopen, read-only roles, expired accounts, ticket namespace binding, stale reconnect responses, automatic short-ticket renewal, committed deletion with a lost acknowledgement, revoked-grant retry termination, identity changes between session and ticket issuance, logout/navigation/stop during pending renewal, Unicode/IME cases, bounded input, explicit acknowledgement semantics, coalescing, and all existing REST editor tests. Automated controller tests do not replace actual browser checks for cookies, CSP, focus, selection, downloads, and navigation prompts.
 
 
 A Chromium loopback smoke test on 2026-11-11 exercised real synthetic sign-in,
@@ -85,6 +88,13 @@ two-tab text/title propagation, emoji replacement, disconnected edits retained
 while another tab writes, Cancel on the pending-work navigation prompt, explicit
 reconnect/replay, reload/reopen of the merged document, viewer read-only controls,
 and sign-out. An earlier pass also exercised explicit live creation and connect.
+The v0.7 pass used eight-second synthetic tickets with one-second server
+revalidation. Two Chromium tabs kept sharing text/title changes across repeated
+renewals. It exercised Stop and explicit Reconnect, a paused session check with
+retained edits, Cancel on pending navigation, merge with a concurrently editing
+tab, automatic recovery after suspending and resuming the local server, and
+cross-tab logout becoming read-only without replay. These are bounded local
+checks, not a real-world network or suspended-device test matrix.
 All accounts and content were synthetic. IME race coverage is automated, not a
 claim of a complete operating-system/input-method matrix. These checks do not
 establish production TLS/cookie behavior, external provider compatibility,

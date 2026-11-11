@@ -1,6 +1,6 @@
 {
   "name": "@gpdoc/opendoc-foundation",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Original portable document API and deployment-profile reference foundation",
   "type": "module",

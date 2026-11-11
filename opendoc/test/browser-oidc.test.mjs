@@ -247,6 +247,29 @@ test('transaction and session TTLs do not slide', async t => {
   assert.equal(await f.app.authenticate(req('/api/v1/session', jar)), null);
 });
 
+test('live ticket reports the exact issuing identity and fresh role without credential metadata', async t => {
+  const f = fixture(t), { jar } = await f.complete();
+  const session = await (await f.app.handleAuth(req('/auth/session', jar))).json();
+  f.setMember({ ...identity, role: 'viewer' });
+  const issuedAt = Date.now();
+  const response = await f.app.handleAuth(req('/auth/collaboration-ticket', jar, { method: 'POST',
+    headers: { 'x-opendoc-csrf': session.csrfToken }, body: { documentId: 'live-document' } }));
+  assert.equal(response.status, 200);
+  const ticket = await response.json();
+  assert.deepEqual(Object.keys(ticket).sort(), ['expiresAt', 'identity', 'path', 'ticket']);
+  assert.deepEqual(ticket.identity, { ...identity, role: 'viewer' });
+  assert.equal(ticket.path, '/api/v1/live-documents/live-document/collaboration');
+  assert.match(ticket.ticket, /^[A-Za-z0-9_-]{43}$/);
+  assert.ok(ticket.expiresAt > issuedAt && ticket.expiresAt <= Date.now() + BROWSER_OIDC_LIMITS.ticketTtlMs);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.ok(!JSON.stringify(ticket).includes('PRIVATE_PROVIDER'));
+  assert.ok(!JSON.stringify(ticket).includes(session.csrfToken));
+  // Repointing a provider subject cannot reinterpret an existing session.
+  f.setMember({ ...identity, principalId: 'different-internal-user' });
+  assert.equal((await f.app.handleAuth(req('/auth/collaboration-ticket', jar, { method: 'POST',
+    headers: { 'x-opendoc-csrf': session.csrfToken }, body: { documentId: 'live-document' } }))).status, 401);
+});
+
 test('bounded maps deny overload without evicting active users', async t => {
   const f = fixture(t, { limits: { maxTransactions: 1, maxSessions: 1, maxTickets: 1 } });
   const flow = await f.login();

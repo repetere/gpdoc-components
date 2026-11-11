@@ -4,6 +4,11 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}(?![\s\S])/;
 const MAX_BYTES = 1024 * 1024;
 const sameText = (a, b) => a && b && a.title === b.title && a.content === b.content;
 const copy = value => value == null ? value : structuredClone(value);
+const validSession = value => value && ['owner', 'editor', 'viewer', 'commenter'].includes(value.role)
+  && typeof value.principalId === 'string' && typeof value.tenantId === 'string' && typeof value.csrfToken === 'string'
+  && Number.isFinite(value.expiresAt) && value.expiresAt > Date.now();
+const sameOwner = (a, b) => a?.principalId === b?.principalId && a?.tenantId === b?.tenantId;
+function accessLost(message, status) { const error = new Error(message); error.code = 'auth-lost'; error.retryable = false; error.status = status; return error; }
 class ApiError extends Error {
   constructor(status) { super(`HTTP ${status}`); this.status = status; }
 }
@@ -29,33 +34,36 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
     conflict: null, live: null, liveDocuments: [], liveListError: '', loading: false, error: '', notice: '', listError: '' };
   const isLive = () => state.active?.authority === 'yjs';
   const dirty = () => Boolean(state.active && (isLive() && live ? state.live?.pending : !state.baseline || !sameText(state.active, state.baseline)));
-  function closeLive(discard = false) { if (discard) { const old = live; live = null; state.live = null; old?.destroy(); } else live?.disconnect(); }
+  function closeLive(discard = false, reason = 'disconnected') { if (discard) { const old = live; live = null; state.live = null; old?.destroy(); } else live?.disconnect(reason); }
   const canCreate = () => state.phase === 'ready' && !writeSuspended && WRITERS.has(session?.role);
   const writable = () => Boolean(canCreate()
-    && (!isLive() || !live && state.active.revision == null || (state.live?.initialized && WRITERS.has(state.live.role) && !state.live.blocked && state.live.status !== 'connecting')));
+    && (!isLive() || !live && state.active.revision == null || (state.live?.initialized && WRITERS.has(state.live.role) && !state.live.blocked && !['auth-lost', 'stopped'].includes(state.live.status))));
   const snapshot = () => ({ ...copy(state), dirty: dirty(), writable: writable(), canCreate: canCreate(), busy: [...busy] });
   const emit = () => { if (!stopped) onChange(snapshot()); };
   function expired() {
-    closeLive(); clearTimeout(expiryTimer);
+    closeLive(false, 'auth-lost'); clearTimeout(expiryTimer);
     epoch++; navigation++; listing++; guardSequence++;
     session = null; state.identity = null; state.phase = 'expired'; state.loading = false;
     state.documents = []; state.liveDocuments = []; state.conflict = null;
     state.error = 'Your session ended. Your current text is still here. Download it before signing in again.';
   }
-  async function request(path, { method = 'GET', body, revision, login = false } = {}) {
+  async function request(path, { method = 'GET', body, revision, login = false, signal, csrfToken } = {}) {
     const controller = new AbortController(); requests.add(controller);
+    const cancel = () => controller.abort(); signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) controller.abort();
     const timer = setTimeout(() => controller.abort(), requestTimeoutMs);
     try {
+      controller.signal.throwIfAborted();
       const headers = { Accept: 'application/json' };
       if (body !== undefined) Object.assign(headers, { 'Content-Type': 'application/json',
-        ...(login ? { 'X-OpenDoc-Login': '1' } : { 'X-OpenDoc-CSRF': session?.csrfToken ?? '' }),
+        ...(login ? { 'X-OpenDoc-Login': '1' } : { 'X-OpenDoc-CSRF': csrfToken ?? session?.csrfToken ?? '' }),
         ...(revision ? { 'If-Match': `"${revision}"` } : {}) });
       const response = await fetcher(path, { method, credentials: 'same-origin', cache: 'no-store', redirect: 'error',
         headers, signal: controller.signal, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
       if (!response.ok) throw new ApiError(response.status);
       if (response.status === 204) return null;
       return await response.json();
-    } finally { clearTimeout(timer); requests.delete(controller); }
+    } finally { clearTimeout(timer); signal?.removeEventListener('abort', cancel); requests.delete(controller); }
   }
   function fail(error, fallback) {
     if (error.status === 403) writeSuspended = true;
@@ -107,9 +115,7 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
     try {
       const result = await request('/auth/session');
       if (own !== epoch || stopped) return false;
-      if (!result || !['owner', 'editor', 'viewer', 'commenter'].includes(result.role)
-        || typeof result.principalId !== 'string' || typeof result.tenantId !== 'string' || typeof result.csrfToken !== 'string'
-        || !Number.isFinite(result.expiresAt)) throw new Error('Invalid session');
+      if (!validSession(result)) throw new Error('Invalid session');
       if (state.active && documentOwner && (documentOwner.principalId !== result.principalId || documentOwner.tenantId !== result.tenantId)) {
         expired(); state.error = 'The signed-in account changed. Download your current text, then reload this page to continue safely.'; return false;
       }
@@ -163,6 +169,7 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
     if (!session || !ID.test(id)) return false;
     const permit = await allowLeave();
     if (!permit || permit !== guardSequence || !session) return false;
+    closeLive();
     const own = ++navigation, ownEpoch = epoch;
     state.loading = true; state.error = ''; state.notice = ''; emit();
     try {
@@ -258,26 +265,59 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
     let candidate;
     candidate = liveFactory({ onChange(value) {
       if (live !== candidate || stopped) return;
+      if (value.status === 'connected' && state.live?.status !== 'connected') state.error = '';
       state.live = value;
       if (value.initialized) { state.active.title = value.title; state.active.content = value.content; state.active.revision = value.revision;
         if (!value.pending) state.liveDocuments = state.liveDocuments.map(doc => doc.id === state.active.id ? { ...doc, title: value.title, revision: value.revision } : doc);
       }
       emit();
-    }, onError(error) { if (live === candidate && !stopped) { state.error = error.message; emit(); } } });
+    }, onError(error) { if (live === candidate && !stopped) {
+      if (error?.status === 401 || error?.code === 'identity-changed') expired();
+      else if (candidate.getState().status === 'auth-lost') writeSuspended = true;
+      state.error = error.message; emit();
+    } } });
     return candidate;
   }
   async function connectLive(candidate, id) {
     const own = navigation, ownEpoch = epoch;
-    const ticket = await request('/auth/collaboration-ticket', { method: 'POST', body: { documentId: id } });
-    if (stopped || own !== navigation || ownEpoch !== epoch) return false;
-    const path = `/api/v1/live-documents/${id}/collaboration`;
-    if (ticket?.path !== path || typeof ticket.ticket !== 'string') throw new Error('Invalid live ticket');
-    const target = new URL(path, origin); target.protocol = target.protocol === 'https:' ? 'wss:' : 'ws:';
-    return candidate.reconnect({ url: target.href, token: ticket.ticket });
+    const owner = { principalId: session.principalId, tenantId: session.tenantId };
+    return candidate.reconnect({ authorize: async ({ signal }) => {
+      const current = () => !stopped && !signal.aborted && own === navigation && ownEpoch === epoch;
+      if (!current()) throw accessLost('Live connection stopped.');
+      const checkedRequest = async (path, options) => {
+        try { return await request(path, options); } catch (error) {
+          if ([401, 403, 404].includes(error.status)) throw accessLost(error.status === 401
+            ? 'Your session ended. Download your current text before signing in again.'
+            : 'Live access is no longer available. Your text is retained for download. Check your session.', error.status);
+          throw error;
+        }
+      };
+      const fresh = await checkedRequest('/auth/session', { signal });
+      if (!current()) throw accessLost('Live connection stopped.');
+      if (!validSession(fresh)) throw accessLost('Your session could not be validated. Download your text before signing in again.', 401);
+      if (!sameOwner(owner, fresh)) throw accessLost('The signed-in account changed. Download your current text, then reload this page to continue safely.', 401);
+      if (candidate.getState().pending && !WRITERS.has(fresh.role)) throw accessLost('Write access changed. Your unconfirmed text is retained for download.', 403);
+      // Use this exact session's CSRF proof, not a later mutable session value.
+      const ticket = await checkedRequest('/auth/collaboration-ticket', { method: 'POST', body: { documentId: id }, signal, csrfToken: fresh.csrfToken });
+      if (!current()) throw accessLost('Live connection stopped.');
+      const path = `/api/v1/live-documents/${id}/collaboration`;
+      if (!sameOwner(owner, ticket?.identity) || ticket.identity.role !== fresh.role) throw accessLost('Live access changed while reconnecting. Your text is retained. Check your session.', 403);
+      if (ticket.path !== path || typeof ticket.ticket !== 'string' || !Number.isFinite(ticket.expiresAt)
+        || ticket.expiresAt <= Date.now() || ticket.expiresAt > Date.now() + 60000 || ticket.expiresAt > fresh.expiresAt) {
+        const error = new Error('The live ticket could not be validated. Your text is retained.'); error.retryable = false; throw error;
+      }
+      const { principalId, tenantId, role, expiresAt, csrfToken } = fresh;
+      session = { principalId, tenantId, role, expiresAt, csrfToken };
+      state.identity = { principalId, tenantId, role, expiresAt }; state.phase = 'ready'; writeSuspended = false;
+      clearTimeout(expiryTimer); expiryTimer = setTimeout(() => { expired(); emit(); }, Math.max(0, expiresAt - Date.now())); expiryTimer.unref?.();
+      const target = new URL(path, origin); target.protocol = target.protocol === 'https:' ? 'wss:' : 'ws:';
+      return { url: target.href, token: ticket.ticket, expiresAt: ticket.expiresAt };
+    } });
   }
   async function openLiveDocument(id) {
     if (!liveFactory || !session || !ID.test(id)) return false;
     const permit = await allowLeave(); if (!permit || permit !== guardSequence || !session) return false;
+    closeLive();
     const own = ++navigation, ownEpoch = epoch;
     state.loading = true; state.error = ''; state.notice = ''; emit();
     let candidate;
@@ -324,7 +364,7 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
   async function reconnectLive() {
     if (!isLive() || !state.active.revision || busy.has('connect') || busy.has('save') || stopped) return false;
     if (live?.getState().status === 'connected') { state.notice = state.live.pending ? 'Waiting for server persistence confirmation.' : 'All live changes are persisted.'; emit(); return !state.live.pending; }
-    busy.add('connect'); state.error = ''; emit();
+    busy.add('connect'); state.error = ''; state.notice = ''; emit();
     let reconnectEpoch, reconnectNavigation, candidate;
     try {
       if (!await checkSession() || !session || !WRITERS.has(session.role) && state.live?.pending) return false;
@@ -338,14 +378,16 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
       candidate = live;
       const connected = await connectLive(candidate, id);
       if (own !== navigation || ownEpoch !== epoch || stopped) { candidate.disconnect(); return false; }
-      if (!connected) state.error = 'Reconnect failed. Retained changes are still here; download a copy before leaving.';
+      if (connected) state.notice = 'Live connection resumed. Changes are sent as you type; Persisted appears only after the server confirms them.';
+      if (!connected && !['auth-lost', 'retrying'].includes(candidate.getState().status)) state.error = 'Reconnect failed. Retained changes are still here; download a copy before leaving.';
       return connected;
     } catch (error) {
       if (stopped || reconnectEpoch !== epoch || reconnectNavigation !== navigation) return false;
       candidate?.disconnect(); writeSuspended = true; fail(error, 'Reconnect could not be authorized. Your text is preserved. Check your session.'); return false; }
     finally { busy.delete('connect'); emit(); }
   }
-  return { getState: snapshot, checkSession, login, logout, refreshDocuments, openDocument, newDocument, openLiveDocument, newLiveDocument, reconnectLive, edit, save,
+  function stopLive() { closeLive(false, 'stopped'); state.notice = 'Live connection stopped. Retained changes are only in this tab. Choose Reconnect to resume.'; emit(); }
+  return { getState: snapshot, stopLive, checkSession, login, logout, refreshDocuments, openDocument, newDocument, openLiveDocument, newLiveDocument, reconnectLive, edit, save,
     beginComposition: field => live?.beginComposition(field), endComposition: value => live?.endComposition(value),
     reviewConflict: () => loadConflict(), keepDraft, useSavedVersion,
     destroy() { stopped = true; closeLive(true); clearTimeout(expiryTimer); epoch++; navigation++; listing++; guardSequence++; session = null; for (const controller of requests) controller.abort(); requests.clear(); } };

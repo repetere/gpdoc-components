@@ -327,7 +327,12 @@ export function createBrowserOidc({
           const ticket = secret();
           const { expiresAt } = await atomic(context, 'issueTicket', { ticketId: ticket, sessionId: current.id,
             version: current.session.version, roomId });
-          return response({ ticket, expiresAt, ...(live ? { path: `/api/v1/live-documents/${id}/collaboration` } : {}) });
+          // Bind retained browser CRDT state to the identity used for this exact
+          // issuance. A prior /auth/session read can race a different cookie.
+          // This is public identity metadata, never a session/provider token.
+          return response({ ticket, expiresAt, ...(live ? {
+            path: `/api/v1/live-documents/${id}/collaboration`, identity: current.identity
+          } : {}) });
         } catch (error) {
           let cookies = [];
           if (callbackCleanup) {

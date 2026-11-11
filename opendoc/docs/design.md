@@ -1,6 +1,6 @@
 # OpenDoc foundation design
 
-OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.6 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification, experimental authenticated Yjs collaboration, an OIDC browser-login/account-mapping foundation, optional shared auth state a REST text editor and an opt-in live Yjs text editor. It does not contain the full GPDoc application.
+OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.7 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification, experimental authenticated Yjs collaboration, an OIDC browser-login/account-mapping foundation, optional shared auth state, a REST text editor and an opt-in live Yjs text editor with automatic short-lived ticket renewal and bounded reconnect. It does not contain the full GPDoc application.
 
 ## Current scope
 

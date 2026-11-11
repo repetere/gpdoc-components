@@ -55,11 +55,16 @@ function render(state) {
   $('document-panel').setAttribute('aria-busy', String(state.loading));
   show('read-only', !state.writable);
   text('read-only', live && state.active.revision && !state.live && signedIn ? 'Connect to start live editing. Your document has been created.' : 'Editing is unavailable for this session. You can read and download your text, but cannot send changes.');
-  text('save-state', live ? state.loading ? 'Opening live document…' : writing ? 'Creating live document…' : state.live?.status === 'connecting' ? 'Connecting…' : state.live?.status === 'connected' ? state.dirty ? 'Pending server confirmation' : 'Persisted on server' : state.live ? state.dirty ? 'Disconnected · changes in this tab only' : 'Disconnected · last changes persisted' : state.active.revision ? 'Created · connect to edit' : 'New live draft' : state.loading ? 'Opening document…' : writing ? 'Saving…' : state.conflict ? 'Review needed' : state.dirty ? 'Unsaved changes' : 'All changes saved');
+  const liveStatus = state.live?.status;
+  const liveProgress = liveStatus === 'renewing' ? 'Renewing live access…' : liveStatus === 'retrying' ? `Reconnecting · attempt ${state.live.retries} of 3`
+    : liveStatus === 'auth-lost' ? 'Live access ended · text retained in this tab' : liveStatus === 'stopped' ? 'Live connection stopped · text retained in this tab' : null;
+  show('stop-live', live && Boolean(state.live) && ['connected', 'connecting', 'renewing', 'retrying'].includes(liveStatus));
+  $('stop-live').disabled = waiting;
+  text('save-state', live ? liveProgress || (state.loading ? 'Opening live document…' : writing ? 'Creating live document…' : state.live?.status === 'connecting' ? 'Connecting…' : state.live?.status === 'connected' ? state.dirty ? 'Pending server confirmation' : 'Persisted on server' : state.live ? state.dirty ? 'Disconnected · changes in this tab only' : 'Disconnected · last changes persisted' : state.active.revision ? 'Created · connect to edit' : 'New live draft') : state.loading ? 'Opening document…' : writing ? 'Saving…' : state.conflict ? 'Review needed' : state.dirty ? 'Unsaved changes' : 'All changes saved');
   text('revision', state.active.revision ? `${live ? 'Live revision' : 'Revision'} ${state.active.revision}` : 'New draft');
   show('live-help', live);
-  text('live-help', 'Live changes are sent while connected. Pending changes exist only in this tab until confirmed by the server. Download before closing or signing in again.');
-  $('save').disabled = live && state.active.revision ? waiting || writing || state.loading || state.busy.includes('connect') || state.live?.status === 'connected' : !state.writable || !state.dirty || writing || waiting || state.loading || Boolean(state.conflict);
+  text('live-help', 'Live access renews automatically. Interrupted connections retry up to three times. Pending changes stay only in this tab until the server confirms them. Download before closing or signing in again.');
+  $('save').disabled = live && state.active.revision ? waiting || writing || state.loading || state.busy.includes('connect') || ['connected', 'connecting', 'renewing', 'retrying'].includes(state.live?.status) : !state.writable || !state.dirty || writing || waiting || state.loading || Boolean(state.conflict);
   text('save', live ? writing ? 'Creating…' : state.active.revision ? state.live ? 'Reconnect' : 'Connect' : 'Create live document' : writing ? 'Saving…' : state.baseline ? 'Save changes' : 'Create document');
   const words = state.active.content.trim().split(/\s+/u).filter(Boolean).length;
   text('word-count', `${words.toLocaleString()} ${words === 1 ? 'word' : 'words'}`);
@@ -89,6 +94,7 @@ $('new-live-document').addEventListener('click', async () => { if (await control
 $('sign-out').addEventListener('click', () => controller.logout());
 $('check-session').addEventListener('click', () => controller.checkSession());
 $('refresh').addEventListener('click', () => controller.refreshDocuments());
+$('stop-live').addEventListener('click', () => controller.stopLive());
 $('save').addEventListener('click', () => controller.save());
 for (const field of ['title', 'content']) {
   const element = $(`document-${field}`);
@@ -107,6 +113,7 @@ $('download').addEventListener('click', () => {
   document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 window.addEventListener('beforeunload', event => { if (current?.dirty) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('pagehide', () => controller.destroy());
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
 document.addEventListener('keydown', event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); void controller.save(); }

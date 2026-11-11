@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="OpenDoc v0.6: an original MIT-licensed foundation for cloud-neutral document services. Run the local reference API and explore the deployment roadmap.">
+  <meta name="description" content="OpenDoc v0.7: an original MIT-licensed foundation for cloud-neutral document services. Run the local reference API and explore the deployment roadmap.">
   <meta name="theme-color" content="#faf9f6">
   <title>OpenDoc · An open foundation for document services</title>
   <link rel="stylesheet" href="../style.css">
@@ -25,7 +25,7 @@
   <main id="main">
     <section class="opendoc-hero page-width" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <div class="eyebrow">OPEN SOURCE · CLOUD-NEUTRAL · V0.6</div>
+        <div class="eyebrow">OPEN SOURCE · CLOUD-NEUTRAL · V0.7</div>
         <h1 id="hero-title">An open foundation<br>for <em>documents.</em></h1>
         <p class="lead">Start with a small, inspectable document service. Build toward an experience you can host, extend, and make your own.</p>
         <p class="hero-detail">OpenDoc is an original MIT-licensed foundation: a local reference API, PostgreSQL storage, strict access-token validation, signed deployment profiles, experimental Yjs collaboration, browser sign-in, shared authentication state, and separate REST and live text editors.</p>
@@ -33,7 +33,7 @@
           <a class="primary" href="#quickstart">Run it locally <span aria-hidden="true">↓</span></a>
           <a href="https://github.com/repetere/gpdoc-components/tree/main/opendoc">Explore the source <span aria-hidden="true">→</span></a>
         </div>
-        <p class="release-note"><span class="status-dot" aria-hidden="true"></span> v0.6 foundation <span class="release-divider" aria-hidden="true">/</span> Local prototype, not production-ready</p>
+        <p class="release-note"><span class="status-dot" aria-hidden="true"></span> v0.7 foundation <span class="release-divider" aria-hidden="true">/</span> Local prototype, not production-ready</p>
       </div>
       <figure class="blueprint" aria-labelledby="blueprint-caption">
         <div class="blueprint-heading"><span>THE BUILDING BLOCKS</span><span aria-hidden="true">01 / 03</span></div>
@@ -54,7 +54,7 @@
           <div><h2>Your infrastructure</h2><p>AWS · GCP · Azure · open-source stack</p></div>
           <span class="tag planned">PLANNED</span>
         </div>
-        <figcaption id="blueprint-caption">Architecture direction. The v0.6 reference runs locally; production deployments and cloud adapters are not implemented.</figcaption>
+        <figcaption id="blueprint-caption">Architecture direction. The v0.7 reference runs locally; production deployments and cloud adapters are not implemented.</figcaption>
       </figure>
     </section>
 
@@ -65,7 +65,7 @@
       </div>
       <div class="status-columns">
         <article class="status-panel current">
-          <div class="panel-heading"><span class="tag available">AVAILABLE IN V0.6</span><span aria-hidden="true">●</span></div>
+          <div class="panel-heading"><span class="tag available">AVAILABLE IN V0.7</span><span aria-hidden="true">●</span></div>
           <h3>Local and adapter foundation</h3>
           <ul>
             <li>Authenticated local document API with tenant and role checks.</li>
@@ -79,15 +79,17 @@
             <li>Optional encrypted PostgreSQL state for shared browser authentication.</li>
             <li>Authenticated REST text editing with explicit saves and revision-conflict review.</li>
             <li>Opt-in live text collaboration with a separate Yjs authority and persisted update acknowledgements.</li>
+            <li>Automatic live-ticket renewal and bounded reconnect with visible pending-work status.</li>
             <li>Node.js 22+ with pinned adapter dependencies.</li>
           </ul>
-          <p class="panel-note">Demo authentication uses a local temporary token. It is not enterprise OIDC login. Browser-login tests use a synthetic provider. Sessions default to memory, with an optional PostgreSQL adapter. The opt-in live editor uses a separate Yjs document authority with durable update acknowledgements; REST documents keep their revision-based saves. Both modes remain experimental. These adapters do not upgrade the default memory demo.</p>
+          <p class="panel-note">Demo authentication uses a local temporary token. It is not enterprise OIDC login. Browser-login tests use a synthetic provider. Sessions default to memory, with an optional PostgreSQL adapter. The opt-in live editor uses a separate Yjs document authority with durable update acknowledgements; REST documents keep their revision-based saves. Pending live edits remain only in the open tab until confirmed; automatic reconnect is not a durable offline queue. Both modes remain experimental. These adapters do not upgrade the default memory demo.</p>
         </article>
         <article class="status-panel future">
           <div class="panel-heading"><span class="tag planned">PLANNED / NOT IMPLEMENTED</span><span aria-hidden="true">○</span></div>
           <h3>The production path</h3>
           <ul>
             <li>Production identity-provider validation, cross-instance collaboration, and rich-text editor integration.</li>
+            <li>Durable browser offline recovery with explicit retention and account isolation.</li>
             <li>Production database operations and S3 / GCS / Blob storage adapters.</li>
             <li>Cloud infrastructure as code and tested deployment recipes.</li>
             <li>Configurable branding and rebrandable VS Code clients.</li>

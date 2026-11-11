@@ -8,7 +8,7 @@ import { attachCollaborationServer } from '../../src/collaboration-server.mjs';
 import { createWebClientHandler, createWebClientNodeListener } from '../../src/web-client.mjs';
 import { startSyntheticProvider } from './oidc-provider.mjs';
 
-export async function startSyntheticEditorDemo() {
+export async function startSyntheticEditorDemo({ authLimits = {}, collaborationLimits = {} } = {}) {
   if (process.env.OPENDOC_SYNTHETIC_EDITOR !== '1') throw new Error('Explicit OPENDOC_SYNTHETIC_EDITOR=1 is required. Synthetic local accounts only. Never proxy publicly.');
   let listener = (_request, response) => { response.writeHead(503); response.end(); };
   const server = createServer({ maxHeaderSize: 16 * 1024, requestTimeout: 30000, headersTimeout: 10000 }, (request, response) => listener(request, response));
@@ -22,11 +22,11 @@ export async function startSyntheticEditorDemo() {
   await liveStore.create('synthetic-team', { id: 'live-welcome', title: 'Together, in real time', content: '# Welcome to live OpenDoc\n\nOpen this document in two tabs. Each confirmed change is shared through the authoritative Yjs document.\n\nPending means this tab still holds changes the server has not confirmed. Download a copy before leaving if you see pending or disconnected.\n\nRevision documents in the library remain separate.\n' });
   store.create('synthetic-team', { id: 'welcome', title: 'A place for your next idea', content: '# Welcome to OpenDoc\n\nThis is a synthetic local workspace. No real accounts or credentials.\n\nWrite in plain text or Markdown, then choose Save changes. Every successful save creates a new revision.\n\n## Try a revision conflict\n\nOpen this document in two tabs. Save one tab, then save different changes in the other. Both versions stay available for review.\n\nThis editor uses REST saves. Live documents are explicitly separate in the library.' });
   store.create('synthetic-team', { id: 'field-notes', title: 'Field notes', content: '# Field notes\n\nA small space for a useful observation.\n\n- What did you notice?\n- What changed your mind?\n- What comes next?\n' });
-  const auth = createBrowserOidc({ ...provider, redirectUri: `${origin}/auth/callback`, activeTenantId: 'synthetic-team', allowInsecureLoopback: true,
+  const auth = createBrowserOidc({ ...provider, redirectUri: `${origin}/auth/callback`, activeTenantId: 'synthetic-team', allowInsecureLoopback: true, limits: authLimits,
     resolveMembership: async ({ issuer, subject, activeTenantId }) => issuer === provider.issuer && activeTenantId === 'synthetic-team' ? memberships.get(subject) ?? null : null });
   const handle = await createWebClientHandler({ handle: auth.createHandler({ store, liveStore }), canonicalOrigin: origin, allowInsecureLoopback: true });
   listener = createWebClientNodeListener({ handle, canonicalOrigin: origin, allowInsecureLoopback: true });
-  const collaboration = attachCollaborationServer({ server, liveStore, authenticate: auth.authenticateCollaboration, allowedOrigins: [origin] });
+  const collaboration = attachCollaborationServer({ server, liveStore, authenticate: auth.authenticateCollaboration, allowedOrigins: [origin], limits: collaborationLimits });
   return { liveStore, collaboration, origin, issuer: provider.issuer, auth, store, memberships, provider,
     async close() { await collaboration.close(); await auth.close(); await Promise.all([provider.close(), new Promise((resolve, reject) => { server.close(error => error ? reject(error) : resolve()); server.closeAllConnections(); })]); } };
 }

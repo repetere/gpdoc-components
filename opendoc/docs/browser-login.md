@@ -163,10 +163,22 @@ new second argument. Do not synthesize the context from a browser message.
 Revalidation checks the same session, current account membership and ticket
 expiry on every call, including checks after awaited dependencies. The ticket
 expires even for an already connected socket, at most 60 seconds after issuance.
-The browser must obtain a new ticket and reconnect when it expires. This short
-connection lifetime is an intentional evaluation limit, not seamless production
-session renewal. Room authorization remains the existing tenant-role model; this
+The browser must obtain a new ticket and reconnect when it expires. The opt-in
+[live editor](live-editor.md) schedules fresh-ticket reconnects before expiry,
+revalidates session and membership, and retains unconfirmed CRDT state in the
+same tab. It never extends a ticket or browser session. The standalone v1 helper
+still leaves renewal to its host. Room authorization remains the existing tenant-role model; this
 milestone does not introduce document-specific ACLs or sharing invitations.
+
+For a live document, send exactly `{documentId: 'document-id'}` instead of
+`roomId`. The response includes `{ticket, expiresAt, path, identity}`, where
+`identity` is exactly `{principalId, tenantId, role}` from authorization of this
+specific issuance. A client with retained edits must compare this identity to
+its original principal and tenant, not rely only on an earlier session read:
+browser cookies can change between the two requests. Validate the exact live
+path and current role before opening a socket or replaying state. The server
+rechecks authorization on the new connection; response identity metadata does
+not confer authority. Tickets for live and standalone routes are not interchangeable.
 
 ## Limits, timeouts and lifecycle
 
