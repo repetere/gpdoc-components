@@ -41,10 +41,11 @@ history endpoint. The latest saved revision is not a complete version history.
 
 ### Separate from experimental Yjs
 
-This client makes REST reads and conditional saves only. It never opens a
-WebSocket, requests a collaboration ticket, or performs dual REST/Yjs writes.
+Revision-document mode makes REST reads and conditional saves only. That mode
+never opens a WebSocket, requests a collaboration ticket, or performs dual
+REST/Yjs writes. The optional live mode is described separately below.
 The experimental Yjs transport and its rooms remain a separate integration with
-a separate persistence model. This editor does not claim live multi-user cursors,
+a separate persistence model. The revision mode does not claim live multi-user cursors,
 automatic merges, or seamless collaborative reconnection.
 
 ## Security and data handling
@@ -210,7 +211,9 @@ integration tests use real local OIDC code/token/JWKS requests, the actual REST
 API and editor controller, including two-client conflicts and read-only roles.
 Host tests cover static security headers, exact origin/Host, forwarding headers,
 raw targets, independent Set-Cookie headers, body bounds and response deadlines.
-No DOM-testing dependency or production bundle toolchain is needed.
+No DOM-testing dependency is needed. The shared browser entry point is now
+bundled using pinned esbuild; run `npm run check:web` to verify source/artifact
+consistency. See the [live editor build notes](live-editor.md).
 
 A Chromium loopback smoke test on 2026-11-11 additionally verified synthetic
 sign-in/consent, document creation and saves, a two-tab revision conflict with
@@ -224,3 +227,7 @@ TLS, a particular external identity provider, proxy behavior, distributed servic
 availability or a complete accessibility/browser compatibility audit. Browser QA
 should additionally cover keyboard use, narrow screens, actual provider cancel,
 two tabs, dirty navigation Cancel/Discard, download, session expiry and sign-out.
+
+## Optional live document editor
+
+The revision flow described above remains supported unchanged. The browser now also offers a separate, explicitly created live document mode. See [Authenticated live editor](live-editor.md) for local bundle generation, synthetic demo, host composition, persistence status, and recovery limits. Revision documents are never automatically converted or synchronized into this mode.

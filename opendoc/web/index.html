@@ -18,12 +18,13 @@
   <div class="workspace">
     <aside class="sidebar" aria-label="Document library">
       <div class="sidebar-heading"><h1>Documents</h1><button id="refresh" class="icon-button" aria-label="Refresh document list" title="Refresh document list">↻</button></div>
-      <button id="new-document" class="primary new-document" disabled><span aria-hidden="true">＋</span> New document</button>
+      <button id="new-document" class="primary new-document" disabled><span aria-hidden="true">＋</span> New revision document</button>
+      <button id="new-live-document" class="new-document" disabled><span aria-hidden="true">＋</span> New live document</button>
       <p class="workspace-label" id="workspace-label">Your writing, together in one place.</p>
       <p id="list-error" class="error-text" role="alert"></p>
       <ul id="document-list" class="document-list" aria-label="Documents"></ul>
       <p id="list-empty" class="muted">Sign in to see your documents.</p>
-      <div class="sidebar-footer"><span class="mode-dot" aria-hidden="true"></span>Revision-based editing<p>Changes save when you choose Save. This editor does not use live collaboration.</p></div>
+      <div class="sidebar-footer"><span class="mode-dot" aria-hidden="true"></span>Choose how you write<p>Live documents share confirmed changes. Revision documents save only when you choose Save. They stay separate.</p></div>
     </aside>
     <main id="main" class="main" tabindex="-1">
       <div class="workspace-topline"><span id="breadcrumb">WORKSPACE / EDITOR</span><span class="pill">Plain text & Markdown</span></div>
@@ -41,21 +42,22 @@
       <section id="document-panel" aria-label="Document editor" hidden>
         <div class="document-toolbar"><div><span id="save-state" class="save-state" role="status">Saved</span><span id="revision" class="revision"></span></div><div class="editor-actions"><button id="download" class="quiet">Download copy</button><button id="save" class="primary" disabled>Save changes</button></div></div>
         <div id="read-only" class="banner notice" hidden>Editing is unavailable for this session. You can read and download your text, but cannot save changes.</div>
+        <p id="live-help" class="live-help" hidden></p>
         <div class="paper">
           <label class="field-label" for="document-title">DOCUMENT TITLE</label>
           <input id="document-title" class="document-title" type="text" maxlength="200" placeholder="Untitled document" autocomplete="off" spellcheck="true" aria-describedby="title-hint">
           <span id="title-hint" class="sr-only">Up to 200 characters.</span>
           <div class="paper-divider"></div>
           <label class="field-label" for="document-content">YOUR DOCUMENT</label>
-          <textarea id="document-content" placeholder="Start writing. A good idea only needs a first line." spellcheck="true" aria-describedby="content-hint"></textarea>
+          <textarea id="document-content" maxlength="1048576" placeholder="Start writing. A good idea only needs a first line." spellcheck="true" aria-describedby="content-hint"></textarea>
           <div class="paper-footer"><span id="content-hint">Markdown stays as plain text. No HTML is rendered.</span><span id="word-count">0 words</span></div>
         </div>
         <section id="conflict" class="conflict" aria-labelledby="conflict-heading" hidden>
           <p class="eyebrow">SAVE NEEDS YOUR REVIEW</p><h3 id="conflict-heading">Keep your work. Compare the latest version.</h3>
           <p id="conflict-message"></p>
           <div id="remote-version" hidden><label for="remote-title" class="field-label">LATEST SAVED TITLE</label><input id="remote-title" readonly><label for="remote-content" class="field-label">LATEST SAVED CONTENT</label><textarea id="remote-content" readonly></textarea><p id="remote-revision" class="muted"></p></div>
-          <p class="muted">Copy any saved changes you need into your document above. “Keep my text” keeps your buffer and uses this reviewed revision for the next save. It does not merge automatically.</p>
-          <div class="conflict-actions"><button id="review-conflict">Check latest version</button><button id="keep-draft" class="primary" disabled>Keep my text</button><button id="use-remote" disabled>Use saved version</button></div>
+          <p id="conflict-help" class="muted">Copy any saved changes you need into your document above. “Keep my text” keeps your buffer and uses this reviewed revision for the next save. It does not merge automatically.</p>
+          <div id="conflict-actions" class="conflict-actions"><button id="review-conflict">Check latest version</button><button id="keep-draft" class="primary" disabled>Keep my text</button><button id="use-remote" disabled>Use saved version</button></div>
         </section>
       </section>
       <footer class="main-footer"><span>OpenDoc</span><span>Clear words. Considered changes.</span></footer>

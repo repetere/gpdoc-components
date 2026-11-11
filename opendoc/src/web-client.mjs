@@ -11,7 +11,8 @@ const SECURITY_HEADERS = {
 const ASSETS = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/assets/editor.css', ['editor.css', 'text/css; charset=utf-8']],
-  ['/assets/editor.mjs', ['editor.mjs', 'text/javascript; charset=utf-8']],
+  ['/assets/editor.mjs', ['dist/editor.mjs', 'text/javascript; charset=utf-8']],
+  ['/assets/THIRD-PARTY-NOTICES.txt', ['dist/THIRD-PARTY-NOTICES.txt', 'text/plain; charset=utf-8']],
   ['/assets/controller.mjs', ['controller.mjs', 'text/javascript; charset=utf-8']]
 ]);
 function errorResponse(status) {

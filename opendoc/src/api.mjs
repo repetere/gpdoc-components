@@ -1,5 +1,7 @@
 // Original OpenDoc reference implementation. No cloud SDK, fetch, or renderer.
 import { StoreError } from './memory-store.mjs';
+import { LIVE_DOCUMENT_LIMITS } from './collaboration-state.mjs';
+import { liveDocumentProjection } from './live-document-store.mjs';
 
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 const TENANT_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
@@ -23,11 +25,20 @@ function plainObject(value) { return value !== null && typeof value === 'object'
 function validPrincipal(p) {
   return plainObject(p) && typeof p.principalId === 'string' && ID.test(p.principalId) && typeof p.tenantId === 'string' && TENANT_ID.test(p.tenantId) && ROLES.has(p.role);
 }
-function routeFor(path) {
+function routeFor(path, liveEnabled) {
   if (path === '/healthz') return { type: 'health', methods: ['GET'] };
   if (path === '/api/v1/capabilities') return { type: 'capabilities', methods: ['GET'] };
   if (path === '/api/v1/session') return { type: 'session', methods: ['GET'] };
   if (path === '/api/v1/documents') return { type: 'collection', methods: ['GET', 'POST'] };
+  if (liveEnabled && path === '/api/v1/live-documents') return { type: 'live-collection', methods: ['GET', 'POST'] };
+  if (liveEnabled) {
+    const live = /^\/api\/v1\/live-documents\/([^/]+)$/.exec(path);
+    if (live) {
+      let id; try { id = decodeURIComponent(live[1]); } catch { fail('BAD_REQUEST'); }
+      if (!ID.test(id)) fail('BAD_REQUEST');
+      return { type: 'live-document', methods: ['GET'], id };
+    }
+  }
   const match = /^\/api\/v1\/documents\/([^/]+)$/.exec(path);
   if (!match) return null;
   let id;
@@ -35,11 +46,13 @@ function routeFor(path) {
   if (!ID.test(id)) fail('BAD_REQUEST');
   return { type: 'document', methods: ['GET', 'PUT'], id };
 }
-async function readDocument(request, creating) {
+async function readDocument(request, creating, live = false) {
+  const maxContent = live ? LIVE_DOCUMENT_LIMITS.maxContentBytes : MAX_CONTENT_BYTES;
+  const maxBody = live ? 6 * maxContent + 4096 : MAX_BODY_BYTES;
   if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(request.headers.get('content-type') ?? '')) fail('UNSUPPORTED_MEDIA_TYPE');
   if (request.headers.has('content-encoding') && request.headers.get('content-encoding') !== 'identity') fail('UNSUPPORTED_MEDIA_TYPE');
   const length = request.headers.get('content-length');
-  if (length && (!/^\d+$/.test(length) || Number(length) > MAX_BODY_BYTES)) fail('TOO_LARGE');
+  if (length && (!/^\d+$/.test(length) || Number(length) > maxBody)) fail('TOO_LARGE');
   if (!request.body) fail('BAD_REQUEST');
   const reader = request.body.getReader();
   const chunks = [];
@@ -49,7 +62,7 @@ async function readDocument(request, creating) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_BODY_BYTES) { await reader.cancel(); fail('TOO_LARGE'); }
+      if (size > maxBody) { await reader.cancel(); fail('TOO_LARGE'); }
       chunks.push(value);
     }
   } finally { reader.releaseLock(); }
@@ -62,7 +75,7 @@ async function readDocument(request, creating) {
   if (!plainObject(input) || Object.keys(input).length !== fields.length || !fields.every(k => Object.hasOwn(input, k))) fail('BAD_REQUEST');
   if (creating && (typeof input.id !== 'string' || !ID.test(input.id))) fail('BAD_REQUEST');
   if (typeof input.title !== 'string' || input.title.length > 200 || typeof input.content !== 'string') fail('BAD_REQUEST');
-  if (encoder.encode(input.content).byteLength > MAX_CONTENT_BYTES) fail('TOO_LARGE');
+  if (encoder.encode(input.content).byteLength > maxContent) fail('TOO_LARGE');
   return input;
 }
 
@@ -71,8 +84,9 @@ async function readDocument(request, creating) {
  * not a client profile. It must verify credentials and resolve tenant membership.
  * Store methods must enforce isolation and atomic revision checks themselves.
  */
-export function createOpenDocHandler({ store, authenticate, allowedOrigins = [] }) {
+export function createOpenDocHandler({ store, liveStore, authenticate, allowedOrigins = [] }) {
   if (!store || !['list', 'get', 'create', 'replace'].every(k => typeof store[k] === 'function') || typeof authenticate !== 'function') throw new TypeError('Store and authenticator adapters required');
+  if (liveStore !== undefined && (!liveStore || !['list', 'get', 'create', 'applyUpdate'].every(key => typeof liveStore[key] === 'function'))) throw new TypeError('Invalid live-document store');
   if (!Array.isArray(allowedOrigins)) throw new TypeError('Origin allowlist required');
   const origins = new Set(allowedOrigins.map(origin => {
     let u;
@@ -99,7 +113,7 @@ export function createOpenDocHandler({ store, authenticate, allowedOrigins = [] 
       }
       const url = new URL(request.url);
       if (url.search || url.hash || url.username || url.password) fail('BAD_REQUEST');
-      const route = routeFor(url.pathname);
+      const route = routeFor(url.pathname, Boolean(liveStore));
       if (!route) fail('NOT_FOUND');
       if (request.method === 'OPTIONS') {
         const method = request.headers.get('access-control-request-method');
@@ -113,7 +127,8 @@ export function createOpenDocHandler({ store, authenticate, allowedOrigins = [] 
       if (route.type === 'health') return respond({ status: 'ok' });
       if (route.type === 'capabilities') return respond({
         apiVersion: '1', implementation: 'opendoc-reference', storage: store.kind ?? 'custom-adapter', authorization: 'tenant-roles',
-        limits: { contentBytes: MAX_CONTENT_BYTES, titleCodeUnits: 200, idCharacters: 64 },
+        limits: { contentBytes: MAX_CONTENT_BYTES, titleCodeUnits: 200, idCharacters: 64, ...(liveStore ? { liveContentBytes: LIVE_DOCUMENT_LIMITS.maxContentBytes } : {}) },
+        ...(liveStore ? { liveDocuments: { authority: 'yjs', collection: '/api/v1/live-documents', protocol: 'opendoc-yjs-2', requiresWebSocketHost: true, storage: liveStore.kind ?? 'custom-adapter' } } : {}),
         features: { conditionalWrites: true, signedProfiles: true, liveCollaboration: false, documentSharing: false, enterpriseLogin: false, airgapVerified: false }
       });
       const identity = await authenticate(request);
@@ -122,6 +137,16 @@ export function createOpenDocHandler({ store, authenticate, allowedOrigins = [] 
       const { principalId, tenantId, role } = identity;
       if (route.type === 'session') return respond({ principalId, tenantId, role });
       if (['POST', 'PUT'].includes(request.method) && !WRITE_ROLES.has(role)) fail('FORBIDDEN');
+      if (route.type === 'live-collection') {
+        if (request.method === 'GET') return respond({ documents: await liveStore.list(tenantId) });
+        const doc = await liveStore.create(tenantId, await readDocument(request, true, true));
+        return respond(liveDocumentProjection(doc), 201, { location: `/api/v1/live-documents/${encodeURIComponent(doc.id)}` });
+      }
+      if (route.type === 'live-document') {
+        const doc = await liveStore.get(tenantId, route.id);
+        if (!doc) fail('NOT_FOUND');
+        return respond(liveDocumentProjection(doc));
+      }
       if (route.type === 'collection') {
         if (request.method === 'GET') return respond({ documents: await store.list(tenantId) });
         const doc = await store.create(tenantId, await readDocument(request, true));

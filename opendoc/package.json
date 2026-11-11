@@ -1,6 +1,6 @@
 {
   "name": "@gpdoc/opendoc-foundation",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Original portable document API and deployment-profile reference foundation",
   "type": "module",
@@ -12,7 +12,9 @@
     "test": "node --test test/*.test.mjs",
     "test:postgres": "node --test integration/*.test.mjs",
     "demo": "node src/demo.mjs",
-    "demo:editor": "node test/fixtures/editor-demo.mjs"
+    "demo:editor": "node test/fixtures/editor-demo.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "check:web": "node scripts/build-web.mjs --check"
   },
   "exports": {
     ".": "./src/api.mjs",
@@ -28,7 +30,9 @@
     "./account-store": "./src/account-store.mjs",
     "./web-client": "./src/web-client.mjs",
     "./browser-auth-state": "./src/browser-auth-state.mjs",
-    "./postgres-browser-auth-state": "./src/postgres-browser-auth-state.mjs"
+    "./postgres-browser-auth-state": "./src/postgres-browser-auth-state.mjs",
+    "./live-document-store": "./src/live-document-store.mjs",
+    "./live-collaboration-client": "./src/live-collaboration-client.mjs"
   },
   "dependencies": {
     "jose": "6.2.17",
@@ -37,6 +41,7 @@
     "yjs": "13.6.33"
   },
   "devDependencies": {
+    "esbuild": "0.25.12",
     "oidc-provider": "9.13.3",
     "pg": "8.23.1"
   }

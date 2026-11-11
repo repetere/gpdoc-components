@@ -2,3 +2,5 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
 .cta-arrow{display:inline-block;width:7px;height:7px;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;transform:rotate(45deg);vertical-align:1px}
+
+.live-help { color: #596572; max-width: 72ch; font-size: .84rem; line-height: 1.6; margin: 0 auto 1rem; }

@@ -268,3 +268,9 @@ survives application restarts with the same operator key, namespace and pinned
 configuration; bootstrap is explicit and never runs on ordinary startup. No claim
 is made that live external-provider behavior, Ping policy, a public TLS deployment
 or disconnected/air-gapped operation has been certified.
+
+### Tickets for authoritative live documents
+
+The browser can request `POST /auth/collaboration-ticket` with the exact JSON body `{ "documentId": "document-id" }`, using the current session cookie and its matching `X-OpenDoc-CSRF` header. The response includes `{ ticket, expiresAt, path }`, where `path` is `/api/v1/live-documents/document-id/collaboration`. The ticket is sent only in the initial WebSocket authentication frame, never in a URL or browser storage.
+
+Live document tickets use a distinct internal namespace and cannot authenticate the existing standalone `/api/v1/collaboration/:roomId` route. Standalone `{ "roomId": "room-id" }` requests remain supported with their existing response shape. The live server checks that the document exists and consults current tenant membership before sending ready/state. The browser HTTP handler accepts an explicit `liveStore` option; the same authoritative store must also be attached to the WebSocket host.

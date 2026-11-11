@@ -49,7 +49,7 @@ The current foundation narrows portability to HTTP/auth/storage contracts, profi
 - **OD-COLLAB-007:** Connections, queues, dependency work and send buffers shall be bounded. Dependency errors shall be sanitized and uncertain writes shall not be acknowledged as successful.
 - **OD-COLLAB-008:** Clients shall use the documented custom protocol, keep credentials out of URLs, reject malformed state frames and stop on oversized replay rather than silently discard local edits.
 
-The integration suite composes synthetic signed access tokens, real loopback WebSockets, multiple Y.Docs and real PostgreSQL. It does not exercise a browser editor, an external identity provider, multiple live fan-out instances, database crash recovery or a disconnected network deployment. The REST capabilities endpoint remains scoped to the REST handler; collaboration must be attached separately.
+The integration suite composes synthetic signed access tokens, real loopback WebSockets, multiple Y.Docs and real PostgreSQL. Those original v1 tests do not exercise a browser editor, an external identity provider, multiple live fan-out instances, database crash recovery or a disconnected network deployment. The opt-in live editor has separate requirements below. The REST capabilities endpoint remains scoped to the REST handler; collaboration must be attached separately.
 
 ## Browser login and account requirements
 
@@ -79,3 +79,16 @@ The integration suite composes synthetic signed access tokens, real loopback Web
 - **OD-EDITOR-005:** Client hosting shall use explicit same-origin routes and security headers without document-controlled paths, filesystem traversal or external client assets. Synthetic login/demo listeners shall remain opt-in loopback evaluation fixtures.
 
 The REST editor does not claim live collaboration, offline persistence, document sharing or rich-text rendering. Shared authentication state is independent of the separate experimental Yjs room/fan-out model.
+
+
+## Authoritative live document and editor requirements
+
+- **OD-LIVE-001:** Live documents shall have a separate collection and storage authority. They shall expose no snapshot PUT or implicit REST conversion, and missing live-document socket targets shall not auto-create documents.
+- **OD-LIVE-002:** The authoritative model shall admit only bounded plain-text title/content Y.Text updates; formats, embeds and unrelated shared types shall fail closed. Untrusted binary decoding shall retain isolated worker limits.
+- **OD-LIVE-003:** Each submitted update shall have a connection-scoped sequence and an explicit acknowledgement only after persistence. State-vector equality alone shall never acknowledge deletions. A lost acknowledgement shall remain uncertain until safe same-document replay/reconciliation.
+- **OD-LIVE-004:** Independent clients shall converge after simultaneous edits, deletions and reconnect with retained updates. New clients and restarted storage shall reopen committed state. Replays shall not duplicate text.
+- **OD-LIVE-005:** Browser sessions and one-use tickets shall remain bound to the same principal, tenant, document and transport audience. A different account shall never acquire the previous account's unsent edits. Read-only users may observe but shall not create or change live documents.
+- **OD-LIVE-006:** The UI shall distinguish connected, pending, persisted, uncertain and disconnected states; newer navigation or authentication shall fence stale callbacks. Pending work shall not disappear through unconfirmed navigation or sign-out. Browser memory is not a durable offline queue.
+- **OD-LIVE-007:** Browser assets shall be generated deterministically from pinned source/dependencies, served locally with required dependency notices, and verified against source during CI. No CDN or external document-content fetch is required.
+
+These requirements describe a bounded, single-fan-out-server evaluation. They do not imply rich-text formatting, per-document sharing, awareness/cursors, cross-instance fan-out, automatic REST/live conversion, durable browser offline storage, production provider interoperability or air-gap readiness.

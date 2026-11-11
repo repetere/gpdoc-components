@@ -94,9 +94,18 @@ test('static client never uses unsafe rendering or persistent browser state', as
   const handle = await createWebClientHandler({ handle: fallback, canonicalOrigin: origin });
   for (const path of ['/assets/editor.mjs', '/assets/controller.mjs']) {
     const code = await (await handle(new Request(origin + path))).text();
-    assert.doesNotMatch(code, /innerHTML|outerHTML|insertAdjacentHTML|localStorage|sessionStorage|indexedDB|document\.cookie|WebSocket/);
+    assert.doesNotMatch(code, /innerHTML|outerHTML|insertAdjacentHTML|localStorage|sessionStorage|indexedDB|document\.cookie/);
   }
   const html = await (await handle(new Request(origin))).text();
   assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)|\bonclick=/);
   assert.match(html, /<textarea id="document-content"/);
+});
+
+test('live browser bundle is local, self-contained, and includes required third-party notices', async () => {
+  const handle = await createWebClientHandler({ handle: fallback, canonicalOrigin: origin });
+  const bundle = await (await handle(new Request(origin + '/assets/editor.mjs'))).text();
+  assert.match(bundle, /opendoc-yjs-2/);
+  assert.doesNotMatch(bundle, /(?:import|export)\s+[^;]*from\s+["']/);
+  const notices = await (await handle(new Request(origin + '/assets/THIRD-PARTY-NOTICES.txt'))).text();
+  for (const dependency of ['yjs 13.6.33', 'lib0', 'isomorphic.js']) assert.ok(notices.includes(dependency));
 });

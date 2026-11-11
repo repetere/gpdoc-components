@@ -319,11 +319,15 @@ export function createBrowserOidc({
               oldTransactionId: OPAQUE.test(old ?? '') ? old : null })) fail('UNAUTHENTICATED');
             return response(null, 204, [...clearSession(), clearTransaction()]);
           }
-          if (Object.keys(body).length !== 1 || typeof body.roomId !== 'string' || !ID.test(body.roomId)) fail('BAD_REQUEST');
+          const live = Object.hasOwn(body, 'documentId');
+          const id = live ? body.documentId : body.roomId;
+          if (Object.keys(body).length !== 1 || typeof id !== 'string' || !ID.test(id)) fail('BAD_REQUEST');
+          // Namespace binding prevents a ticket for a standalone room authorizing a live document.
+          const roomId = live ? `live:${id}` : id;
           const ticket = secret();
           const { expiresAt } = await atomic(context, 'issueTicket', { ticketId: ticket, sessionId: current.id,
-            version: current.session.version, roomId: body.roomId });
-          return response({ ticket, expiresAt });
+            version: current.session.version, roomId });
+          return response({ ticket, expiresAt, ...(live ? { path: `/api/v1/live-documents/${id}/collaboration` } : {}) });
         } catch (error) {
           let cookies = [];
           if (callbackCleanup) {
@@ -347,7 +351,9 @@ export function createBrowserOidc({
   async function authenticateCollaboration(request, { connectionId } = {}) {
     return admitted(async context => {
       const url = new URL(request.url);
-      const room = /^\/api\/v1\/collaboration\/([a-zA-Z0-9][a-zA-Z0-9_-]{0,63})(?![\s\S])/.exec(url.pathname)?.[1];
+      const standalone = /^\/api\/v1\/collaboration\/([a-zA-Z0-9][a-zA-Z0-9_-]{0,63})(?![\s\S])/.exec(url.pathname)?.[1];
+      const live = /^\/api\/v1\/live-documents\/([a-zA-Z0-9][a-zA-Z0-9_-]{0,63})\/collaboration(?![\s\S])/.exec(url.pathname)?.[1];
+      const room = live ? `live:${live}` : standalone;
       if (!room || url.search || url.hash || !OPAQUE.test(connectionId ?? '') || request.headers.get('origin') !== redirect.origin) return null;
       const authorization = request.headers.get('authorization');
       const token = /^Bearer ([a-zA-Z0-9_-]{43})(?![\s\S])/.exec(authorization ?? '')?.[1];
@@ -364,8 +370,8 @@ export function createBrowserOidc({
         sessionId: ticket.sessionId, version: session.version }) ? identity : null;
     });
   }
-  function createHandler({ store } = {}) {
-    const rest = createOpenDocHandler({ store, authenticate, allowedOrigins: [redirect.origin] });
+  function createHandler({ store, liveStore } = {}) {
+    const rest = createOpenDocHandler({ store, liveStore, authenticate, allowedOrigins: [redirect.origin] });
     return async request => {
       if (new URL(request.url).pathname.startsWith('/auth/')) return handleAuth(request);
       try {

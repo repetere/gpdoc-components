@@ -2,9 +2,9 @@
 
 An original, MIT-licensed foundation for portable document services in `gpdoc-components`.
 
-**v0.5 is an experimental foundation, not a production collaborative editor.** It implements a text-document API, tenant/role boundaries, revision checks, signed deployment profiles, PostgreSQL storage, strict access-token validation, authenticated Yjs collaboration rooms, browser OIDC login, server-owned account mappings, optional shared authentication state, and a REST text editor. It does not include the full GPDoc application or extension.
+**v0.6 is an experimental foundation, not a production collaborative editor.** It implements a text-document API, tenant/role boundaries, revision checks, signed deployment profiles, PostgreSQL storage, strict access-token validation, authenticated Yjs collaboration rooms, browser OIDC login, server-owned account mappings, optional shared authentication state, a REST text editor, and an opt-in live text editor with authoritative Yjs documents. It does not include the full GPDoc application or extension.
 
-[OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md) · [Browser login](docs/browser-login.md) · [Accounts](docs/accounts.md) · [Shared sessions](docs/shared-sessions.md) · [Web editor](docs/web-client.md)
+[OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md) · [Browser login](docs/browser-login.md) · [Accounts](docs/accounts.md) · [Shared sessions](docs/shared-sessions.md) · [REST editor](docs/web-client.md) · [Live documents](docs/live-documents.md) · [Live editor](docs/live-editor.md)
 
 ## Run locally
 
@@ -54,7 +54,8 @@ The update returns ETag `"2"`. Reusing `"1"` returns `412`; read the current ver
 - Browser authorization-code login with PKCE, state/nonce checks, opaque HttpOnly sessions, CSRF protection and room-bound WebSocket tickets. See [browser-login scope and setup](docs/browser-login.md).
 - Explicit PostgreSQL identity-to-principal bindings and tenant memberships, with administrative provisioning and no automatic email linking or account enrollment. See [account mapping](docs/accounts.md).
 - Optional authenticated-encrypted PostgreSQL state for shared login transactions, sessions and collaboration tickets. See [shared-session constraints and setup](docs/shared-sessions.md).
-- An authenticated plain-text/Markdown web editor with document lists, explicit saves, dirty-state guards and revision-conflict review. See [web client and opt-in synthetic demo](docs/web-client.md). The editor uses REST, not Yjs rooms.
+- An authenticated plain-text/Markdown web editor with document lists, explicit saves, dirty-state guards and revision-conflict review. See [web client and opt-in synthetic demo](docs/web-client.md). This original mode still uses REST revisions. A separate, explicit live mode uses Yjs as its only editable source of truth.
+- An opt-in authenticated live text editor with a separate collaborative document collection, concurrent Y.Text editing, explicit persisted-update acknowledgements, retained in-memory reconnect state and PostgreSQL storage. Live documents reject snapshot replacement; REST documents are never silently converted or dual-written. See [live document authority](docs/live-documents.md) and [live editor](docs/live-editor.md).
 - Exact origin allowlist, authentication independent of CORS, bounded JSON input and sanitized failures.
 - Real local HTTP adapter and randomly generated development credentials.
 - Closed-schema deployment profile validation and Ed25519 compact-JWS verification with administrator-supplied public keys, deployment binding, expiration and a caller-managed generation floor.
@@ -94,14 +95,14 @@ After installing dependencies, run this separate opt-in fixture from `opendoc/`:
 OPENDOC_SYNTHETIC_EDITOR=1 npm run demo:editor
 ```
 
-Open the printed loopback URL on the same computer. Choose a synthetic account and approve local test consent. Create/edit/save documents, or open the same document in two tabs to try conflict review. Both the identity provider and documents are ephemeral; never enter real credentials or proxy the fixture publicly. This demo does not start PostgreSQL. For explicit database-backed composition, read [web-client setup](docs/web-client.md).
+Open the printed loopback URL on the same computer. Choose a synthetic account and approve local test consent. Create/edit/save REST documents, or open the same REST document in two tabs to try conflict review. To try live collaboration, open the separate live sample in both tabs or create a new live document. Live changes use Yjs and are marked persisted only after a server acknowledgement. See [live editor behavior and limits](docs/live-editor.md). Both the identity provider and documents are ephemeral; never enter real credentials or proxy the fixture publicly. This demo does not start PostgreSQL. For explicit database-backed composition, read [web-client setup](docs/web-client.md).
 
 ## What remains
 
 - Production Ping/Entra/Google interoperability, deployment-specific issuer/client registration and key rotation/revocation tests, federated logout, production session/key operations and membership administration UI. Browser login is tested against an isolated standards-based provider; this is not certification of every provider or deployment. The separate bearer adapter still requires its strict RFC 9068-style token profile.
 - Production PostgreSQL operations and upgrades, document ACL management, object-storage adapters and backup/restore validation.
-- Document-specific sharing, public-link policy, audit export, collaboration across server instances and a deliberate REST-to-Yjs document model. The experimental rooms are not automatically synchronized with REST documents.
-- Rich-text editing, configurable branding and rebrandable extension clients with managed enrollment.
+- Document-specific sharing, public-link policy, audit export, collaboration across server instances and deliberate import/export between REST and live documents. Each format has a separate authority; there is no automatic synchronization or conversion.
+- Automatic collaboration ticket renewal (browser tickets currently expire within 60 seconds and require explicit Reconnect), rich-text editing, configurable branding and rebrandable extension clients with managed enrollment.
 - Executable cloud infrastructure and provider integration tests.
 - Air-gap bundle with a complete deployment SBOM/license inventory, blocked-egress tests and offline operational validation.
 

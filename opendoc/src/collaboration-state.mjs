@@ -5,6 +5,7 @@ import { StoreError } from './memory-store.mjs';
 
 export const MAX_COLLABORATION_UPDATE_BYTES = 64 * 1024;
 export const MAX_COLLABORATION_STATE_BYTES = 1024 * 1024;
+export const LIVE_DOCUMENT_LIMITS = Object.freeze({ maxUpdateBytes: MAX_COLLABORATION_STATE_BYTES, maxContentBytes: 256 * 1024, maxTitleCodeUnits: 200 });
 export const COLLABORATION_LIMITS = Object.freeze({
   maxUpdateBytes: MAX_COLLABORATION_UPDATE_BYTES,
   maxStateBytes: MAX_COLLABORATION_STATE_BYTES,
@@ -30,9 +31,9 @@ let activeWorkers = 0;
 const SAFE_CODES = new Set(['BAD_REQUEST', 'TOO_LARGE', 'CAPACITY_EXCEEDED', 'DEPENDENCY_UNAVAILABLE']);
 
 /** Copies bounded bytes before any await, so caller mutation cannot alter a write. */
-export function copyCollaborationUpdate(update) {
+export function copyCollaborationUpdate(update, maximum = MAX_COLLABORATION_UPDATE_BYTES) {
   if (!(update instanceof Uint8Array) || update.byteLength < 2) throw new StoreError('BAD_REQUEST');
-  if (update.byteLength > MAX_COLLABORATION_UPDATE_BYTES) throw new StoreError('TOO_LARGE');
+  if (update.byteLength > maximum) throw new StoreError('TOO_LARGE');
   // Shared memory can change even during copying; do not admit it.
   if (!(update.buffer instanceof ArrayBuffer)) throw new StoreError('BAD_REQUEST');
   return Uint8Array.from(update);
@@ -45,8 +46,22 @@ export function copyCollaborationUpdate(update) {
  * reference service, not a hostile-code sandbox: also set deployment-level CPU,
  * memory, connection/rate and PostgreSQL statement/idle-transaction limits.
  */
-export async function mergeCollaborationState(previousState, update) {
-  const input = copyCollaborationUpdate(update);
+export function mergeCollaborationState(previousState, update) {
+  return runStateWorker(previousState, update, false);
+}
+
+export function mergeLiveDocumentState(previousState, update) {
+  return runStateWorker(previousState, update, true);
+}
+
+export function createLiveDocumentState(input) {
+  if (!input || typeof input.title !== 'string' || typeof input.content !== 'string' || input.title.length > LIVE_DOCUMENT_LIMITS.maxTitleCodeUnits || !input.title.isWellFormed() || !input.content.isWellFormed()) throw new StoreError('BAD_REQUEST');
+  if (new TextEncoder().encode(input.content).byteLength > LIVE_DOCUMENT_LIMITS.maxContentBytes) throw new StoreError('TOO_LARGE');
+  return runStateWorker(null, new Uint8Array([0, 0]), true, { title: input.title, content: input.content });
+}
+
+async function runStateWorker(previousState, update, live, create = null) {
+  const input = copyCollaborationUpdate(update, live ? LIVE_DOCUMENT_LIMITS.maxUpdateBytes : MAX_COLLABORATION_UPDATE_BYTES);
   let previous = null;
   if (previousState !== null) {
     if (!(previousState instanceof Uint8Array) || !(previousState.buffer instanceof ArrayBuffer) ||
@@ -61,7 +76,7 @@ export async function mergeCollaborationState(previousState, update) {
   let timer;
   try {
     worker = new Worker(new URL('./collaboration-state-worker.mjs', import.meta.url), {
-      workerData: { previous, update: input },
+      workerData: { previous, update: input, live, create },
       transferList: [input.buffer, ...(previous ? [previous.buffer] : [])],
       // Never inherit evaluation/preload/debug flags or secrets from the host.
       execArgv: [], env: {}, stdout: true, stderr: true,
@@ -82,7 +97,11 @@ export async function mergeCollaborationState(previousState, update) {
             result.state.byteLength > MAX_COLLABORATION_STATE_BYTES || typeof result.changed !== 'boolean') {
           return reject(new StoreError('DEPENDENCY_UNAVAILABLE'));
         }
-        resolve({ state: result.state, changed: result.changed });
+        if (live && (typeof result.title !== 'string' || result.title.length > LIVE_DOCUMENT_LIMITS.maxTitleCodeUnits ||
+          typeof result.content !== 'string' || new TextEncoder().encode(result.content).byteLength > LIVE_DOCUMENT_LIMITS.maxContentBytes)) {
+          return reject(new StoreError('DEPENDENCY_UNAVAILABLE'));
+        }
+        resolve({ state: result.state, changed: result.changed, ...(live ? { title: result.title, content: result.content } : {}) });
       });
       worker.once('error', error => reject(new StoreError(error?.code === 'ERR_WORKER_OUT_OF_MEMORY' ? 'TOO_LARGE' : 'DEPENDENCY_UNAVAILABLE')));
       worker.once('exit', () => reject(new StoreError('DEPENDENCY_UNAVAILABLE')));

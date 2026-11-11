@@ -20,6 +20,11 @@ dual-write, import/export or cross-format conflict resolution. Applications must
 choose an authoritative format before adding those features. No rich-document
 schema or editor binding is implied by the room transport.
 
+The opt-in [live document service](live-documents.md) adds a **separate**
+collection, schema and v2 transport route for the [live text editor](live-editor.md).
+It does not adopt these v1 rooms or REST documents. The v1 protocol below remains
+an independent building block.
+
 Owner/editor roles may submit updates. Viewer/commenter roles may read only.
 The reference authorization model grants access to every room in the verified
 tenant. Per-room sharing and ACLs, comment operations, presence and awareness

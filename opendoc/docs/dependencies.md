@@ -6,6 +6,7 @@ OpenDoc's original code uses the repository MIT license. Third-party packages re
 - Browser login imports `openid-client` and its `oauth4webapi` dependency. The isolated identity-provider fixture imports `oidc-provider` only in tests/development. Preserve that package’s `THIRD-PARTY-NOTICES.md` as well as dependency licenses when redistributing fixtures. Neither library certification nor a passing local fixture certifies OpenDoc or a deployment.
 - The access-token adapter imports `jose` for JWT/JWK verification. The package is pinned exactly rather than reimplementing signature verification.
 - The experimental collaboration transport imports `ws`; its client and isolated merge worker import `yjs`. Yjs imports `lib0` and `isomorphic.js`. These are pinned in the lockfile, not copied from a private application.
+- The live browser client is bundled locally from the pinned Yjs graph using build-only `esbuild` 0.25.12 (MIT). Its platform-specific optional packages are also MIT. `npm run check:web` verifies that the checked-in bundle and notices match the source; no CDN is used. These assets are not an offline deployment bundle.
 - The PostgreSQL adapter accepts a caller-owned Pool-compatible object and does not import a driver. Integration tests use the pinned `pg` driver. A host must install and configure its runtime database driver separately if it installs OpenDoc with development dependencies omitted.
 - `npm ci --ignore-scripts` installs the lockfile without package lifecycle scripts. It needs network access or a pre-populated approved cache. It is not an offline/air-gap installer.
 - PostgreSQL server binaries, container images, operating systems and cloud services are not distributed in this package. Their licenses and operational requirements need their own inventory before shipping a deployment.
@@ -15,6 +16,32 @@ OpenDoc's original code uses the repository MIT license. Third-party packages re
 
 | Package / lockfile path | Version | Declared license | Use |
 | --- | --- | --- | --- |
+| @esbuild/aix-ppc64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/android-arm | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/android-arm64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/android-x64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/darwin-arm64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/darwin-x64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/freebsd-arm64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/freebsd-x64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-arm | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-arm64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-ia32 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-loong64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-mips64el | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-ppc64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-riscv64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-s390x | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/linux-x64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/netbsd-arm64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/netbsd-x64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/openbsd-arm64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/openbsd-x64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/openharmony-arm64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/sunos-x64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/win32-arm64 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/win32-ia32 | 0.25.12 | MIT | build-only optional binary |
+| @esbuild/win32-x64 | 0.25.12 | MIT | build-only optional binary |
 | accepts | 1.3.8 | MIT | test/driver dependency |
 | accepts/node_modules/mime-db | 1.52.0 | MIT | test/driver dependency |
 | accepts/node_modules/mime-types | 2.1.35 | MIT | test/driver dependency |
@@ -28,6 +55,7 @@ OpenDoc's original code uses the repository MIT license. Third-party packages re
 | destroy | 1.2.0 | MIT | test/driver dependency |
 | ee-first | 1.1.1 | MIT | test/driver dependency |
 | encodeurl | 2.0.1 | MIT | test/driver dependency |
+| esbuild | 0.25.12 | MIT | build only |
 | escape-html | 1.0.3 | MIT | test/driver dependency |
 | fresh | 0.5.2 | MIT | test/driver dependency |
 | http-assert | 1.5.0 | MIT | test/driver dependency |

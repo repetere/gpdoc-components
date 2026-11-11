@@ -27,7 +27,7 @@ Cloud hosting and user sign-in are independent choices. An AWS deployment can us
 
 ## Configuration reference
 
-The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.5. Keep the published signed client profile separate from all server credentials.
+The following keys are a **proposed production adapter contract**, not environment variables consumed by v0.6. Keep the published signed client profile separate from all server credentials.
 
 ```yaml
 deployment:
