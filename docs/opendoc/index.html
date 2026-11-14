@@ -34,8 +34,10 @@
         <div class="actions">
           <a class="primary" href="#quickstart">Run it locally <span aria-hidden="true">↓</span></a>
           <a href="https://github.com/repetere/gpdoc-components/tree/main/opendoc">Explore the source <span aria-hidden="true">→</span></a>
+          <a href="https://opendoc.repetere.net/">Open the POC <span aria-hidden="true">→</span></a>
         </div>
         <p class="release-note"><span class="status-dot" aria-hidden="true"></span> v0.9 foundation <span class="release-divider" aria-hidden="true">/</span> Local prototype, not production-ready</p>
+        <p class="hero-detail">A separate AWS Lightsail proof of concept uses PostgreSQL and self-hosted Keycloak. Sign-in requires an operator-provisioned account; public registration is disabled. Use synthetic documents. <a href="https://github.com/repetere/gpdoc-components/tree/main/opendoc/deploy/lightsail">Single-host POC recipe</a>.</p>
       </div>
       <figure class="blueprint" aria-labelledby="blueprint-caption">
         <div class="blueprint-heading"><span>THE BUILDING BLOCKS</span><span aria-hidden="true">01 / 03</span></div>
@@ -56,7 +58,7 @@
           <div><h2>Your infrastructure</h2><p>AWS · GCP · Azure · open-source stack</p></div>
           <span class="tag planned">PLANNED</span>
         </div>
-        <figcaption id="blueprint-caption">Architecture direction. The v0.9 reference runs locally; production deployments and cloud adapters are not implemented.</figcaption>
+        <figcaption id="blueprint-caption">Architecture direction. The reference API runs locally and a separate single-host Lightsail POC is available. Production deployments and cloud adapters remain unfinished.</figcaption>
       </figure>
     </section>
 
@@ -100,7 +102,7 @@
             <li>Configurable branding and rebrandable VS Code clients.</li>
             <li>Verified air-gap operation and production hardening.</li>
           </ul>
-          <p class="panel-note">These are roadmap goals, not release promises. No cloud deployment is claimed or verified here.</p>
+          <p class="panel-note">These are roadmap goals, not release promises. The single-host Lightsail POC exercises Keycloak login and PostgreSQL persistence; it does not establish production capacity, high availability or enterprise-provider certification.</p>
         </article>
       </div>
     </section>

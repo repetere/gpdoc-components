@@ -5,6 +5,25 @@ prefix: OD-SERVER
 
 # Deployable OpenDoc server
 
+## Single-host POC composition
+
+The optional Lightsail recipe retains the existing proxy-mode server contract
+and verified PostgreSQL TLS. One explicitly authorized 2 GB Linux host runs
+OpenDoc, self-hosted Keycloak, PostgreSQL and Caddy, with bounded memory and
+disk-backed swap. Only HTTP/HTTPS and operator-scoped SSH are public. Keycloak
+registration, public administration and master-realm routes are disabled; one
+explicit issuer/subject mapping admits the randomly credentialed POC owner.
+The initial realm import and private configuration are fresh-install-only.
+Separate application/database administrator credentials stay out of the runtime
+application container. Persistent local volumes survive container restart.
+
+The recipe deliberately trades availability and capacity for the selected
+$12/month plan. It adds no load balancer, managed database, paid snapshot or
+additional disk. Workload acceptance must test actual provider login, document
+durability and memory use before reporting a live POC. Insufficient capacity
+requires a user decision rather than an automatic paid upgrade. This deployment
+does not change the server's experimental enterprise/air-gap boundaries.
+
 ## Context and design philosophy
 
 The deployable host composes the existing OpenDoc adapters into a Node.js service
