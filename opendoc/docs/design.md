@@ -1,6 +1,6 @@
 # OpenDoc foundation design
 
-OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.8 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification, experimental authenticated Yjs collaboration, an OIDC browser-login/account-mapping foundation, optional shared auth state, a REST text editor and an opt-in live Yjs text editor with automatic short-lived ticket renewal bounded reconnect, and opt-in periodic synchronization through one shared PostgreSQL authority. It does not contain the full GPDoc application.
+OpenDoc is an independently implemented, MIT-licensed foundation for portable document services. The v0.9 foundation supplies a runnable local reference API, memory and PostgreSQL document-store adapters, explicit authentication/authorization boundaries, a pinned-key access-token validator, signed deployment-profile verification, experimental authenticated Yjs collaboration, an OIDC browser-login/account-mapping foundation, optional shared auth state, a REST text editor and an opt-in live Yjs text editor with automatic short-lived ticket renewal bounded reconnect, and opt-in periodic synchronization through one shared PostgreSQL authority. It does not contain the full GPDoc application.
 
 ## Current scope
 
@@ -51,3 +51,7 @@ Requirements live in `specs.md`; tests use `@spec` identifiers. Source, fixtures
 ## Adapter documentation
 
 [PostgreSQL](postgres.md) defines schema creation, persistent limits, pool ownership and integration-test safety. [Authentication](authentication.md) defines the accepted token profile, operator trust configuration and server-owned membership. [Collaboration](collaboration.md) defines its custom protocol, separate schema, resource limits and reconnect contract. [Dependencies](dependencies.md) identifies pinned packages and distribution boundaries.
+
+## Deployable host
+
+The [server composition](server.md) packages the existing adapters with explicit configuration, administration, ingress and lifecycle management. It preserves separate REST/live authorities and tenant-level roles. See the [server design](intent/server/server-design.md) and [server requirements](intent/server/server-specs.md). Public cloud, provider interoperability, backup/restore and air-gap acceptance remain separate evidence.

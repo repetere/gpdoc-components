@@ -1,0 +1,60 @@
+name: opendoc-reference
+x-app: &app
+  image: opendoc-reference:local
+  build:
+    context: ../..
+    dockerfile: opendoc/Dockerfile
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  depends_on:
+    postgres: {condition: service_healthy}
+  volumes:
+    - ./.reference/server.json:/run/opendoc/server.json:ro
+    - ./.reference/tls/ca.crt:/run/opendoc/tls/ca.crt:ro
+    - ./.reference/tls/app.crt:/run/opendoc/tls/app.crt:ro
+    - ./.reference/tls/app.key:/run/opendoc/tls/app.key:ro
+    - ./.reference/secrets/runtime-password:/run/opendoc/secrets/runtime-password:ro
+    - ./.reference/secrets/auth-key:/run/opendoc/secrets/auth-key:ro
+    - ./.reference/secrets/client-secret:/run/opendoc/secrets/client-secret:ro
+services:
+  postgres:
+    image: postgres:17-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
+    environment:
+      POSTGRES_DB: opendoc
+      POSTGRES_USER: opendoc_admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/admin-password
+    entrypoint: [/bin/sh, /reference/postgres-tls.sh]
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./.reference/tls/postgres.crt:/run/tls/postgres.crt:ro
+      - ./.reference/tls/postgres.key:/run/tls/postgres.key:ro
+      - ./.reference/secrets/admin-password:/run/secrets/admin-password:ro
+      - ./.reference/secrets/runtime-password:/run/secrets/runtime-password:ro
+      - ./postgres-tls.sh:/reference/postgres-tls.sh:ro
+      - ./postgres-runtime-role.sh:/docker-entrypoint-initdb.d/010-runtime-role.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U opendoc_admin -d opendoc"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  app:
+    <<: *app
+    ports: ["127.0.0.1:8443:8787"]
+    stop_grace_period: 15s
+  admin:
+    <<: *app
+    profiles: [admin]
+    healthcheck: {disable: true}
+    volumes:
+      - ./.reference/server.json:/run/opendoc/server.json:ro
+      - ./.reference/tls/ca.crt:/run/opendoc/tls/ca.crt:ro
+      - ./.reference/tls/app.crt:/run/opendoc/tls/app.crt:ro
+      - ./.reference/tls/app.key:/run/opendoc/tls/app.key:ro
+      - ./.reference/secrets/runtime-password:/run/opendoc/secrets/runtime-password:ro
+      - ./.reference/secrets/admin-password:/run/opendoc/secrets/admin-password:ro
+      - ./.reference/secrets/auth-key:/run/opendoc/secrets/auth-key:ro
+      - ./.reference/secrets/client-secret:/run/opendoc/secrets/client-secret:ro
+volumes:
+  database:

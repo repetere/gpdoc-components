@@ -101,6 +101,23 @@ export class PostgresBrowserAuthState {
       return { schemaVersion: BROWSER_AUTH_SCHEMA_VERSION };
     });
   }
+  #validateMetadata(metadata) {
+    if (!metadata || metadata.schema_version !== BROWSER_AUTH_SCHEMA_VERSION || !same(metadata.key_check, this.#check()) ||
+        !metadata.policy || metadata.policy.binding !== this.#policy.binding ||
+        Object.keys(metadata.policy).length !== 2 || !metadata.policy.limits ||
+        Object.keys(metadata.policy.limits).length !== Object.keys(this.#policy.limits).length ||
+        Object.entries(this.#policy.limits).some(([key, value]) => metadata.policy.limits[key] !== value)) fail();
+    return integer(metadata.max_bytes, 16 * 1024 * 1024);
+  }
+  // @spec OD-SERVER-004: do not invoke the session state machine or expiry cleanup.
+  async checkReadiness() {
+    if (!this.#policy) fail();
+    await this.#connection(async client => {
+      const result = await client.query(`SELECT schema_version, policy, key_check, max_bytes FROM ${this.#schema}.browser_auth_state WHERE singleton = true`);
+      if (result.rows.length !== 1) fail();
+      this.#validateMetadata(result.rows[0]);
+    });
+  }
   async run(operation, input = {}, guard = () => {}) {
     if (!this.#policy) fail();
     let responseDeadline = Infinity, clockSample;
@@ -109,12 +126,7 @@ export class PostgresBrowserAuthState {
       if (locked.rows.length !== 1) fail();
       const metadata = locked.rows[0];
       // JSONB object key order is not preserved. Compare the exact expected fields.
-      if (metadata.schema_version !== BROWSER_AUTH_SCHEMA_VERSION || !same(metadata.key_check, this.#check()) ||
-        !metadata.policy || metadata.policy.binding !== this.#policy.binding ||
-        Object.keys(metadata.policy).length !== 2 || !metadata.policy.limits ||
-        Object.keys(metadata.policy.limits).length !== Object.keys(this.#policy.limits).length ||
-        Object.entries(this.#policy.limits).some(([key, value]) => metadata.policy.limits[key] !== value)) fail();
-      const maxBytes = integer(metadata.max_bytes, 16 * 1024 * 1024);
+      const maxBytes = this.#validateMetadata(metadata);
       const limits = this.#policy.limits;
       const maxRows = limits.maxSessions + limits.maxTransactions + limits.maxTickets;
       const stored = await client.query(`SELECT kind, record_key, payload, expires_at FROM ${this.#schema}.browser_auth_records LIMIT $1`, [maxRows + 1]);

@@ -143,6 +143,11 @@ export class PostgresDocumentStore {
     return state;
   }
 
+  // @spec OD-SERVER-004: metadata compatibility only; no document reads/writes.
+  async checkReadiness() {
+    await connection(this.#pool, false, client => this.#state(client));
+  }
+
   async list(tenantId) {
     scope(tenantId);
     return connection(this.#pool, false, async client => {

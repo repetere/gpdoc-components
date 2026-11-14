@@ -12,6 +12,8 @@ Open-source skills and components for GPDoc.
 
 - [GPDoc Markdown](INSTALL.md): create and edit GPDoc Markdown, comments, and pending suggestions with ordinary file tools. No GPDoc client or additional service is required.
 
+The [deployable OpenDoc server guide](opendoc/docs/server.md) covers PostgreSQL/OIDC composition, explicit administration, TLS, health checks, container packaging and operating boundaries.
+
 ## Install the skill
 
 ### Claude Code marketplace

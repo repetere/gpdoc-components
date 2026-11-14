@@ -61,6 +61,38 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
+  opendoc-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare isolated TLS reference files
+        run: node opendoc/deploy/prepare-reference.mjs --synthetic-client
+      - name: Build non-root server image
+        run: docker compose -f opendoc/deploy/compose.yml build app
+      - name: Verify production-only runtime
+        run: |
+          docker run --rm --entrypoint node opendoc-reference:local -e "if(process.getuid()===0)process.exit(1);require('pg');try{require.resolve('oidc-provider');process.exit(1)}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}"
+      - name: Initialize isolated database and explicit runtime grants
+        run: |
+          docker compose -f opendoc/deploy/compose.yml up -d --wait postgres
+          for component in accounts documents live sessions; do
+            docker compose -f opendoc/deploy/compose.yml --profile admin run --rm admin init --config /run/opendoc/server.json --component "$component"
+          done
+          docker compose -f opendoc/deploy/compose.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U opendoc_admin -d opendoc < opendoc/deploy/runtime-grants.sql
+      - name: Exercise packaged server readiness, TLS and restart
+        run: |
+          docker compose -f opendoc/deploy/compose.yml up -d --wait app
+          docker compose -f opendoc/deploy/compose.yml exec -T app node src/server-health.mjs /run/opendoc/server.json
+          curl --fail --cacert opendoc/deploy/.reference/tls/ca.crt https://localhost:8443/readyz
+          docker compose -f opendoc/deploy/compose.yml restart app
+          docker compose -f opendoc/deploy/compose.yml up -d --wait app
+          docker compose -f opendoc/deploy/compose.yml exec -T app node src/server-health.mjs /run/opendoc/server.json
+      - name: Cleanup isolated reference
+        if: always()
+        run: docker compose -f opendoc/deploy/compose.yml --profile admin down -v --remove-orphans
   reference-layout:
     runs-on: ubuntu-latest
     strategy:

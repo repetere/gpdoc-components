@@ -85,6 +85,7 @@
             <li>Opt-in cross-instance live synchronization through one shared PostgreSQL primary.</li>
             <li>Optional transaction-bound live write authorization and restart-persistent history checks.</li>
             <li>Node.js 22+ with pinned adapter dependencies.</li>
+          <li>Configurable Node server with PostgreSQL/OIDC composition, health checks, administrative commands and a TLS-enabled container reference.</li>
           </ul>
           <p class="panel-note">Demo authentication uses a local temporary token. It is not enterprise OIDC login. Browser-login tests use a synthetic provider. Sessions default to memory, with an optional PostgreSQL adapter. The opt-in live editor uses a separate Yjs document authority with durable update acknowledgements; REST documents keep their revision-based saves. Pending live edits remain only in the open tab until confirmed; automatic reconnect is not a durable offline queue. Cross-instance synchronization requires explicit configuration against the same PostgreSQL primary and schema; database failover and multi-primary safety are not provided. Both modes remain experimental. Guarded history requires a fresh schema and can quarantine the entire namespace; it cannot detect a whole database restored or cloned with its checkpoints. These adapters do not upgrade the default memory demo.</p>
         </article>
@@ -166,7 +167,7 @@ npm run demo</code></pre>
           <dl><div><dt>Compute</dt><dd>Kubernetes</dd></div><div><dt>Database</dt><dd>CloudNativePG (CNPG)</dd></div><div><dt>Objects</dt><dd>Rook Ceph</dd></div><div><dt>Identity</dt><dd>Keycloak</dd></div><div><dt>Ingress</dt><dd>Envoy Gateway</dd></div></dl>
         </article>
       </div>
-      <p class="caption cloud-caveat">Provider names identify architectural targets, not partnerships or certifications. Production availability, security, backup and recovery, and operating costs still require implementation and validation. <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/deployment.md">Read the deployment notes.</a></p>
+      <p class="caption cloud-caveat">Provider names identify architectural targets, not partnerships or certifications. Production availability, security, backup and recovery, and operating costs still require implementation and validation. <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/deployment.md">Read the deployment notes.</a> <a href="https://github.com/repetere/gpdoc-components/blob/main/opendoc/docs/server.md">Deployable server guide.</a></p>
     </section>
 
     <section class="roadmap-section page-width" id="roadmap" aria-labelledby="roadmap-title">

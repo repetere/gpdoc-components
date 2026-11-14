@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "server": {
+    "mode": "direct-tls",
+    "publicOrigin": "https://localhost:8443",
+    "host": "0.0.0.0",
+    "port": 8787,
+    "tlsCertificateFile": "tls/app.crt",
+    "tlsKeyFile": "tls/app.key",
+    "tlsCaFile": "tls/ca.crt",
+    "shutdownTimeoutMs": 10000
+  },
+  "database": {
+    "host": "postgres",
+    "port": 5432,
+    "database": "opendoc",
+    "user": "opendoc_runtime",
+    "passwordFile": "secrets/runtime-password",
+    "tls": "verify-full",
+    "caFile": "tls/ca.crt",
+    "max": 8
+  },
+  "administration": {
+    "user": "opendoc_admin",
+    "passwordFile": "secrets/admin-password"
+  },
+  "schemas": {
+    "accounts": "opendoc_accounts",
+    "documents": "opendoc_documents",
+    "live": "opendoc_live",
+    "sessions": "opendoc_sessions"
+  },
+  "activeTenantId": "example-team",
+  "authKeyFile": "secrets/auth-key",
+  "oidc": {
+    "issuer": "https://identity.example.test/realms/opendoc",
+    "clientId": "opendoc-web",
+    "clientSecretFile": "secrets/client-secret",
+    "authorizationEndpoint": "https://identity.example.test/realms/opendoc/protocol/openid-connect/auth",
+    "tokenEndpoint": "https://identity.example.test/realms/opendoc/protocol/openid-connect/token",
+    "jwksUri": "https://identity.example.test/realms/opendoc/protocol/openid-connect/certs"
+  },
+  "live": {
+    "sharedSyncIntervalMs": 1000
+  }
+}

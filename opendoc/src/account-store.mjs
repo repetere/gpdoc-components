@@ -226,6 +226,11 @@ export class PostgresAccountStore {
     this.#reserve(state, 'memberships', 'maxMemberships', tenantId.length + principalId.length + nextRole.length);
     await client.query(`INSERT INTO ${this.#schema}.memberships (tenant_id, principal_id, role) VALUES ($1, $2, $3)`, [tenantId, principalId, nextRole]);
   }
+  // @spec OD-SERVER-004: retain the existing shared account metadata barrier.
+  async checkReadiness() {
+    await connection(this.#pool, client => this.#state(client));
+  }
+
   async resolveMembership(value) {
     const { issuer, subject, activeTenantId } = input(value, ['issuer', 'subject', 'activeTenantId']);
     tenant(activeTenantId);
