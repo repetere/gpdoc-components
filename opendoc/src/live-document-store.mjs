@@ -287,6 +287,11 @@ export class PostgresLiveDocumentStore {
         !(checkpoint.digest instanceof Uint8Array) || checkpoint.digest.byteLength !== 32 ||
         !(digest instanceof Uint8Array) || digest.byteLength !== 32 || !Buffer.from(checkpoint.digest).equals(digest)) corrupt();
   }
+  // @spec OD-SERVER-004: #run checks version, pin and quarantine without a mutation.
+  async checkReadiness() {
+    await this.#run(false, undefined, async () => undefined);
+  }
+
   async #guardedRow(client, tenant, id, metadataOnly = false) {
     const columns = metadataOnly ? `tenant_id, document_id, title_json, revision, created_at, updated_at, ${digestSql()} AS actual_digest` : '*';
     const canonical = await client.query(`SELECT ${columns} FROM ${this.#schema}.live_documents WHERE tenant_id = $1 AND document_id = $2`, [tenant, id]);

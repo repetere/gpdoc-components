@@ -7,7 +7,7 @@ OpenDoc's original code uses the repository MIT license. Third-party packages re
 - The access-token adapter imports `jose` for JWT/JWK verification. The package is pinned exactly rather than reimplementing signature verification.
 - The experimental collaboration transport imports `ws`; its client and isolated merge worker import `yjs`. Yjs imports `lib0` and `isomorphic.js`. These are pinned in the lockfile, not copied from a private application.
 - The live browser client is bundled locally from the pinned Yjs graph using build-only `esbuild` 0.25.12 (MIT). Its platform-specific optional packages are also MIT. `npm run check:web` verifies that the checked-in bundle and notices match the source; no CDN is used. These assets are not an offline deployment bundle.
-- The PostgreSQL adapter accepts a caller-owned Pool-compatible object and does not import a driver. Integration tests use the pinned `pg` driver. A host must install and configure its runtime database driver separately if it installs OpenDoc with development dependencies omitted.
+- The PostgreSQL adapter accepts a caller-owned Pool-compatible object and does not import a driver. The deployable host and integration tests use the pinned `pg` driver, now a runtime dependency. Adapter modules still accept an injected Pool-compatible port; the host owns connection/TLS configuration.
 - `npm ci --ignore-scripts` installs the lockfile without package lifecycle scripts. It needs network access or a pre-populated approved cache. It is not an offline/air-gap installer.
 - PostgreSQL server binaries, container images, operating systems and cloud services are not distributed in this package. Their licenses and operational requirements need their own inventory before shipping a deployment.
 - Preserve dependency license files/notices when packaging. Public source links are not a substitute for required notices in a redistributed bundle. Existing GPDoc brand reservations still apply.
@@ -80,20 +80,20 @@ OpenDoc's original code uses the repository MIT license. Third-party packages re
 | on-finished | 2.4.2 | MIT | test/driver dependency |
 | openid-client | 6.8.9 | MIT | runtime |
 | parseurl | 1.3.3 | MIT | test/driver dependency |
-| pg | 8.23.1 | MIT | test/driver dependency |
-| pg-cloudflare | 1.4.1 | MIT | test/driver dependency |
-| pg-connection-string | 2.14.1 | MIT | test/driver dependency |
-| pg-int8 | 1.0.1 | ISC | test/driver dependency |
-| pg-pool | 3.14.0 | MIT | test/driver dependency |
-| pg-protocol | 1.16.1 | MIT | test/driver dependency |
-| pg-types | 2.2.0 | MIT | test/driver dependency |
-| pgpass | 1.0.5 | MIT | test/driver dependency |
-| postgres-array | 2.0.0 | MIT | test/driver dependency |
-| postgres-bytea | 1.0.1 | MIT | test/driver dependency |
-| postgres-date | 1.0.7 | MIT | test/driver dependency |
-| postgres-interval | 1.2.0 | MIT | test/driver dependency |
+| pg | 8.23.1 | MIT | runtime server/driver dependency |
+| pg-cloudflare | 1.4.1 | MIT | runtime server/driver dependency |
+| pg-connection-string | 2.14.1 | MIT | runtime server/driver dependency |
+| pg-int8 | 1.0.1 | ISC | runtime server/driver dependency |
+| pg-pool | 3.14.0 | MIT | runtime server/driver dependency |
+| pg-protocol | 1.16.1 | MIT | runtime server/driver dependency |
+| pg-types | 2.2.0 | MIT | runtime server/driver dependency |
+| pgpass | 1.0.5 | MIT | runtime server/driver dependency |
+| postgres-array | 2.0.0 | MIT | runtime server/driver dependency |
+| postgres-bytea | 1.0.1 | MIT | runtime server/driver dependency |
+| postgres-date | 1.0.7 | MIT | runtime server/driver dependency |
+| postgres-interval | 1.2.0 | MIT | runtime server/driver dependency |
 | setprototypeof | 1.2.0 | ISC | test/driver dependency |
-| split2 | 4.2.0 | ISC | test/driver dependency |
+| split2 | 4.2.0 | ISC | runtime server/driver dependency |
 | statuses | 2.0.2 | MIT | test/driver dependency |
 | toidentifier | 1.0.1 | MIT | test/driver dependency |
 | tsscmp | 1.0.6 | MIT | test/driver dependency |
@@ -101,7 +101,7 @@ OpenDoc's original code uses the repository MIT license. Third-party packages re
 | type-is/node_modules/content-type | 2.1.0 | MIT | test/driver dependency |
 | vary | 1.1.2 | MIT | test/driver dependency |
 | ws | 8.22.2 | MIT | runtime |
-| xtend | 4.0.2 | MIT | test/driver dependency |
+| xtend | 4.0.2 | MIT | runtime server/driver dependency |
 | yjs | 13.6.33 | MIT | runtime |
 
 Versions, integrity hashes and resolved URLs are recorded in [`package-lock.json`](../package-lock.json). The lockfile is authoritative if this table changes. Node.js itself has its own distribution notices.

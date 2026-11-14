@@ -6,6 +6,10 @@ An original, MIT-licensed foundation for portable document services in `gpdoc-co
 
 [OpenDoc overview](https://repetere.github.io/gpdoc-components/opendoc/) · [API design](docs/design.md) · [Deployment references](docs/deployment.md) · [Profile contract](docs/profile.md) · [PostgreSQL](docs/postgres.md) · [Authentication](docs/authentication.md) · [Collaboration](docs/collaboration.md) · [Browser login](docs/browser-login.md) · [Accounts](docs/accounts.md) · [Shared sessions](docs/shared-sessions.md) · [REST editor](docs/web-client.md) · [Live documents](docs/live-documents.md) · [Live editor](docs/live-editor.md) · [Shared live synchronization](docs/shared-collaboration.md) · [Guarded live storage](docs/guarded-live-storage.md)
 
+## Deployable server
+
+The [deployable Node server](docs/server.md) composes PostgreSQL storage, server-owned account mappings, browser OIDC, encrypted shared sessions and live collaboration. It includes configuration checks, separate administrative commands, strict HTTP/WebSocket ingress, metadata readiness, bounded shutdown and a TLS-enabled container reference. This is still an experimental foundation; a published server package is not evidence of a validated production cloud or identity provider.
+
 ## Run locally
 
 Requires Node.js 22 or newer. Install the pinned dependencies before running the complete test suite. The simple memory demo itself still uses only the Node standard library. The access-token adapter uses `jose`, collaboration uses `ws` and `yjs`, browser login uses `openid-client`, and PostgreSQL integration tests use `pg`. The isolated identity-provider fixture uses `oidc-provider` only as a development/test dependency. See [dependency boundaries](docs/dependencies.md).

@@ -14,7 +14,11 @@
     "demo": "node src/demo.mjs",
     "demo:editor": "node test/fixtures/editor-demo.mjs",
     "build:web": "node scripts/build-web.mjs",
-    "check:web": "node scripts/build-web.mjs --check"
+    "check:web": "node scripts/build-web.mjs --check",
+    "start": "node src/server-cli.mjs start",
+    "server:check": "node src/server-cli.mjs check",
+    "server:init": "node src/server-cli.mjs init",
+    "server:account": "node src/server-cli.mjs account"
   },
   "exports": {
     ".": "./src/api.mjs",
@@ -32,17 +36,19 @@
     "./browser-auth-state": "./src/browser-auth-state.mjs",
     "./postgres-browser-auth-state": "./src/postgres-browser-auth-state.mjs",
     "./live-document-store": "./src/live-document-store.mjs",
-    "./live-collaboration-client": "./src/live-collaboration-client.mjs"
+    "./live-collaboration-client": "./src/live-collaboration-client.mjs",
+    "./server": "./src/server.mjs",
+    "./server-config": "./src/server-config.mjs"
   },
   "dependencies": {
     "jose": "6.2.17",
     "openid-client": "6.8.9",
     "ws": "8.22.2",
-    "yjs": "13.6.33"
+    "yjs": "13.6.33",
+    "pg": "8.23.1"
   },
   "devDependencies": {
     "esbuild": "0.25.12",
-    "oidc-provider": "9.13.3",
-    "pg": "8.23.1"
+    "oidc-provider": "9.13.3"
   }
 }

@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 node_modules/
+
+# OpenDoc deployment secrets and generated certificates
+opendoc/deploy/.reference/

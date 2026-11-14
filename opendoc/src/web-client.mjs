@@ -56,6 +56,20 @@ export async function createWebClientHandler({ handle, canonicalOrigin, allowIns
 }
 
 /**
+ * Shared raw ingress policy for HTTP and operator-owned WebSocket dispatch.
+ * @spec OD-SERVER-005
+ */
+export function validWebClientIngress(incoming, canonicalOrigin) {
+  let hosts = 0;
+  for (let index = 0; index < incoming.rawHeaders.length; index += 2) {
+    const name = incoming.rawHeaders[index].toLowerCase();
+    if (name === 'host') hosts++;
+    if (name === 'forwarded' || name.startsWith('x-forwarded-')) return false;
+  }
+  return hosts === 1 && incoming.headers.host === new URL(canonicalOrigin).host && allowedTarget(incoming.url);
+}
+
+/**
  * Node request listener for an operator-owned HTTP(S) server. It trusts no proxy
  * headers and accepts only the configured Host. TLS/HSTS, ingress rate limits,
  * server header/request timeouts and trusted proxy configuration remain operator-owned.
@@ -83,13 +97,7 @@ export function createWebClientNodeListener({ handle, canonicalOrigin, allowInse
     const onAborted = () => abort.abort(); incoming.once('aborted', onAborted);
     try {
       const rawHeaders = incoming.rawHeaders;
-      let hosts = 0;
-      for (let index = 0; index < rawHeaders.length; index += 2) {
-        const name = rawHeaders[index].toLowerCase();
-        if (name === 'host') hosts++;
-        if (name === 'forwarded' || name.startsWith('x-forwarded-')) { await send(errorResponse(400)); incoming.resume(); return; }
-      }
-      if (hosts !== 1 || incoming.headers.host !== origin.host || !allowedTarget(incoming.url)) { await send(errorResponse(400)); incoming.resume(); return; }
+      if (!validWebClientIngress(incoming, origin.origin)) { await send(errorResponse(400)); incoming.resume(); return; }
       const length = incoming.headers['content-length'];
       if (length !== undefined && (!/^\d+$/.test(length) || Number(length) > maxBodyBytes)) { await send(errorResponse(413)); incoming.resume(); return; }
       const method = incoming.method ?? 'GET';
