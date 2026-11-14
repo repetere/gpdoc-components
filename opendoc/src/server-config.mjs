@@ -79,6 +79,7 @@ export function validateServerConfig(input) {
     if(u.username||u.password||u.hash||u.search||u.protocol!==(dev?'http:':'https:')||(dev&&!loopback(u.hostname)))invalid(`oidc.${key}`);
   }
   if(c.administration!==undefined){shape(c.administration,['user','passwordFile']);text(c.administration.user,'administration.user');text(c.administration.passwordFile,'administration.passwordFile',4096);}
+  if(!dev&&c.administration?.user===db.user)invalid('administration.user');
   if(c.live!==undefined){shape(c.live,[],['authorityId','sharedSyncIntervalMs']);
     if(c.live.authorityId!==undefined&&(typeof c.live.authorityId!=='string'||!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(c.live.authorityId)))invalid('live.authorityId');
     if(c.live.sharedSyncIntervalMs!==undefined)number(c.live.sharedSyncIntervalMs,50,30000,'live.sharedSyncIntervalMs');}

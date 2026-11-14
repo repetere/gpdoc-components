@@ -29,6 +29,8 @@ test('configuration is detached and rejects unsafe public, database and schema c
   for(const key of ['issuer','authorizationEndpoint','tokenEndpoint','jwksUri']) remote.oidc[key]=remote.oidc[key].replace('http://127.0.0.1:9999','https://id.example.test');
   assert.equal(validateServerConfig(remote).server.mode,'proxy'); delete remote.server.privateIngress;
   assert.throws(()=>validateServerConfig(remote),/INVALID_CONFIG/);
+  remote.server.privateIngress=true;remote.administration={user:remote.database.user,passwordFile:'other-secret'};
+  assert.throws(()=>validateServerConfig(remote),/INVALID_CONFIG: administration.user/);
 });
 // @spec OD-SERVER-002 OD-SERVER-009
 test('mounted files are bounded, relative to configuration, regular and never echoed on failure', async t => {

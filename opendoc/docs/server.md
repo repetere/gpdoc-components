@@ -56,6 +56,8 @@ duplicate keys and unknown fields, and is decoded as strict UTF-8.
 Remote database TLS always verifies certificates, using `database.caFile` when
 needed. `administration` supplies only a separate user and password file for the
 same target database; do not mount that credential in the ordinary server.
+Production modes require distinct runtime and administrative login names; only
+the explicit loopback development harness may reuse a synthetic test role.
 The auth key is exactly 32 random raw bytes and stays outside PostgreSQL. Every
 instance needs the same key, shared-session policy, schemas and provider settings.
 An unavailable/mismatched key or schema prevents startup; there is no memory

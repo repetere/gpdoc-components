@@ -57,7 +57,8 @@ ephemeral test ports are an injected test-host option and not a production
 configuration value. `server.mode` is `direct-tls`, `proxy` or `development`.
 Direct TLS requires `tlsCertificateFile` and `tlsKeyFile`; proxy mode requires
 an explicit private listener address. Bind configuration never changes the
-canonical public origin. Limits can tighten the existing adapter maxima.
+canonical public origin. The host retains the existing bounded adapter limits;
+the exposed `limits` setting only tightens the readiness deadline.
 
 Required configuration names the exact public origin, listener address and port,
 active tenant, PostgreSQL host/port/database/user and password-file path, four
