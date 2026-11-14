@@ -167,6 +167,11 @@ and removes documents; it is not an upgrade or backup strategy.
 
 ## Publication and acceptance
 
+A bounded [single-host Lightsail POC recipe](../deploy/lightsail/README.md)
+composes this host with self-hosted Keycloak, PostgreSQL and ACME ingress.
+It requires an explicitly authorized paid plan and workload acceptance; it
+does not establish production capacity or free-tier eligibility.
+
 The image publication workflow runs only after the main-branch validation
 workflow succeeds, including PostgreSQL 16/17 integration tests and container
 TLS/readiness/restart checks. It targets `ghcr.io/repetere/opendoc` with an

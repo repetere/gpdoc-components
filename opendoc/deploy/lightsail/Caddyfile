@@ -1,0 +1,20 @@
+{
+  admin off
+}
+{$OPENDOC_HOSTNAME} {
+  # Only the selected realm and browser assets are public. Administration,
+  # master realm, metrics, database and management listeners stay private.
+  @identity path /identity/realms/opendoc/.well-known/openid-configuration /identity/realms/opendoc/protocol/openid-connect/auth /identity/realms/opendoc/protocol/openid-connect/token /identity/realms/opendoc/protocol/openid-connect/certs /identity/realms/opendoc/login-actions/* /identity/resources/*
+  handle @identity {
+    reverse_proxy keycloak:8080
+  }
+  handle /identity* {
+    respond "Not found" 404
+  }
+  handle {
+    reverse_proxy app:8787 {
+      header_up -Forwarded
+      header_up -X-Forwarded-*
+    }
+  }
+}

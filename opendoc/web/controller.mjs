@@ -278,6 +278,7 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
     } } });
     return candidate;
   }
+  // @spec OD-LIVE-008
   async function connectLive(candidate, id) {
     const own = navigation, ownEpoch = epoch;
     const owner = { principalId: session.principalId, tenantId: session.tenantId };
@@ -302,8 +303,9 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
       if (!current()) throw accessLost('Live connection stopped.');
       const path = `/api/v1/live-documents/${id}/collaboration`;
       if (!sameOwner(owner, ticket?.identity) || ticket.identity.role !== fresh.role) throw accessLost('Live access changed while reconnecting. Your text is retained. Check your session.', 403);
+      const receivedAt = Date.now();
       if (ticket.path !== path || typeof ticket.ticket !== 'string' || !Number.isFinite(ticket.expiresAt)
-        || ticket.expiresAt <= Date.now() || ticket.expiresAt > Date.now() + 60000 || ticket.expiresAt > fresh.expiresAt) {
+        || ticket.expiresAt <= receivedAt || ticket.expiresAt > receivedAt + 65000 || ticket.expiresAt > fresh.expiresAt) {
         const error = new Error('The live ticket could not be validated. Your text is retained.'); error.retryable = false; throw error;
       }
       const { principalId, tenantId, role, expiresAt, csrfToken } = fresh;
@@ -311,7 +313,9 @@ export function createEditorController({ fetch: fetcher = globalThis.fetch, onCh
       state.identity = { principalId, tenantId, role, expiresAt }; state.phase = 'ready'; writeSuspended = false;
       clearTimeout(expiryTimer); expiryTimer = setTimeout(() => { expired(); emit(); }, Math.max(0, expiresAt - Date.now())); expiryTimer.unref?.();
       const target = new URL(path, origin); target.protocol = target.protocol === 'https:' ? 'wss:' : 'ws:';
-      return { url: target.href, token: ticket.ticket, expiresAt: ticket.expiresAt };
+      // Small positive server skew must not reject a valid maximum-length ticket.
+      // Keep the transport's stricter 60s wall/monotonic bound and server expiry.
+      return { url: target.href, token: ticket.ticket, expiresAt: Math.min(ticket.expiresAt, receivedAt + 60000) };
     } });
   }
   async function openLiveDocument(id) {

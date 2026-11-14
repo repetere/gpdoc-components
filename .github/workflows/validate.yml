@@ -61,6 +61,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
+      - name: Verify fresh POC configuration safety
+        run: python -m unittest discover -s opendoc/deploy/lightsail -p test_prepare.py -v
   opendoc-container:
     runs-on: ubuntu-latest
     steps:

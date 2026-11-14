@@ -7,11 +7,11 @@ const identity = { principalId: 'alice', tenantId: 'team', role: 'editor', csrfT
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 function deferred() { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; }
 function setup(respond = () => {}) {
-  const calls = [], opened = [], docs = new Map();
+  const calls = [], opened = [], deadlines = [], docs = new Map();
   for (const id of ['one', 'two']) { const doc = new Y.Doc(); doc.getText('title').insert(0, id); doc.getText('content').insert(0, `Authoritative ${id}`); docs.set(id, doc); }
   const controller = createEditorController({ origin: 'https://documents.test', confirmDiscard: async () => true, newId: () => 'new',
     liveFactory: options => createLiveDocument({ ...options, connect: async opts => {
-      const id = new URL(opts.url).pathname.split('/')[4]; opened.push(id); Y.applyUpdate(opts.doc, Y.encodeStateAsUpdate(docs.get(id)));
+      const id = new URL(opts.url).pathname.split('/')[4]; opened.push(id); deadlines.push(opts.expiresAt); Y.applyUpdate(opts.doc, Y.encodeStateAsUpdate(docs.get(id)));
       opts.onState({ connected: true, pending: opts.replay, role: 'editor', revision: 1 });
       return { role: 'editor', revision: 1, pending: opts.replay, close() {} };
     } }),
@@ -24,9 +24,25 @@ function setup(respond = () => {}) {
       if (path === '/auth/collaboration-ticket') { const { documentId } = JSON.parse(init.body); return json({ ticket: 'synthetic', identity, expiresAt: identity.expiresAt, path: `/api/v1/live-documents/${documentId}/collaboration` }); }
       throw new Error('Unexpected request');
     } });
-  return { controller, calls, opened, close() { controller.destroy(); for (const doc of docs.values()) doc.destroy(); } };
+  return { controller, calls, opened, deadlines, close() { controller.destroy(); for (const doc of docs.values()) doc.destroy(); } };
 }
 async function until(predicate) { for (let n = 0; n < 100; n++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 1)); } assert.fail('Expected async stage'); }
+// @spec OD-LIVE-008
+test('small positive server clock skew is clamped and larger expiry extensions never open a socket', async t => {
+  const now = Date.now();
+  t.mock.timers.enable({ apis: ['Date'], now });
+  for (const skew of [1, 50, 4999, 5000, 5001, 60000]) {
+    const session = { ...identity, expiresAt: now + 300000 };
+    const f = setup(path => path === '/auth/session' ? json(session) : path === '/auth/collaboration-ticket'
+      ? json({ ticket: 'synthetic', identity: session, expiresAt: now + 60000 + skew,
+          path: '/api/v1/live-documents/one/collaboration' }) : undefined);
+    try {
+      await f.controller.checkSession();
+      assert.equal(await f.controller.openLiveDocument('one'), skew <= 5000, `skew=${skew}`);
+      assert.deepEqual(f.deadlines, skew <= 5000 ? [now + 60000] : []);
+    } finally { f.close(); }
+  }
+});
 test('live open never initializes Yjs from the REST projection', async () => {
   const f = setup(); await f.controller.checkSession(); await f.controller.openLiveDocument('one');
   assert.equal(f.controller.getState().active.content, 'Authoritative one'); assert.equal(f.controller.getState().active.title, 'one'); f.close();
