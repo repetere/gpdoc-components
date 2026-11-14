@@ -496,7 +496,8 @@ function createEditorController({
       if (!current2()) throw accessLost("Live connection stopped.");
       const path = `/api/v1/live-documents/${id2}/collaboration`;
       if (!sameOwner(owner, ticket?.identity) || ticket.identity.role !== fresh.role) throw accessLost("Live access changed while reconnecting. Your text is retained. Check your session.", 403);
-      if (ticket.path !== path || typeof ticket.ticket !== "string" || !Number.isFinite(ticket.expiresAt) || ticket.expiresAt <= Date.now() || ticket.expiresAt > Date.now() + 6e4 || ticket.expiresAt > fresh.expiresAt) {
+      const receivedAt = Date.now();
+      if (ticket.path !== path || typeof ticket.ticket !== "string" || !Number.isFinite(ticket.expiresAt) || ticket.expiresAt <= receivedAt || ticket.expiresAt > receivedAt + 65e3 || ticket.expiresAt > fresh.expiresAt) {
         const error = new Error("The live ticket could not be validated. Your text is retained.");
         error.retryable = false;
         throw error;
@@ -514,7 +515,7 @@ function createEditorController({
       expiryTimer.unref?.();
       const target = new URL(path, origin);
       target.protocol = target.protocol === "https:" ? "wss:" : "ws:";
-      return { url: target.href, token: ticket.ticket, expiresAt: ticket.expiresAt };
+      return { url: target.href, token: ticket.ticket, expiresAt: Math.min(ticket.expiresAt, receivedAt + 6e4) };
     } });
   }
   async function openLiveDocument(id2) {

@@ -66,6 +66,15 @@ Leaving pending work requires a confirmation. An in-flight write may already hav
 
 ## Editing limits and behavior
 
+Live ticket validation tolerates at most five seconds of positive server clock
+skew. The controller clamps the browser transport deadline to at most 60 seconds
+from receipt, also bounded by the ticket and current session expiry. Larger
+future expiries and already expired tickets are rejected before opening a
+socket. The server retains its independent ticket/session expiry checks; this
+client allowance never extends server authorization. Transport expiry also uses
+a monotonic clock, so moving the browser wall clock backward does not extend an
+established connection.
+
 The initial editor supports plain text and Markdown, with separate Y.Text title/content fields. It does not render document HTML. Title is limited to 200 UTF-16 code units, content to 256 KiB UTF-8, and encoded Yjs state to 1 MiB, including history. Long editing histories can reach the state limit before the visible text limit. Rejected bounded input is retained read-only for download rather than sent or silently replaced. Start a new document after saving that copy.
 
 Textarea changes apply a bounded prefix/suffix edit, preserving unchanged CRDT characters. Boundaries never split a UTF-16 surrogate pair. IME composition anchors to the pre-composition CRDT state and retains concurrent remote insertions. Remote selection positions use Yjs relative positions. This is not a rich-text editor: no awareness cursors, presence roster, rich-text marks, comments UI, undo UI, or offline disk queue is provided.
