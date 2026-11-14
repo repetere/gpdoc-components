@@ -137,7 +137,7 @@ provider. Edit `.reference/server.json` for your provider and copy its client
 secret to `.reference/secrets/client-secret` using your secret-management tools.
 Do not use `--synthetic-client` for real login: that option supplies a placeholder
 only for CI's container readiness test. Keep the generated directory private;
-never commit it. File mounts make selected files readable to the non-root
+never commit it. Ensure the mounted client-secret file is readable by container UID 1000 (or an explicitly chosen container UID), while retaining the private parent directory. File mounts make selected files readable to the non-root
 container; the generated parent directory is mode 0700. Do not mount the local
 CA's private key in either application or database containers.
 
@@ -180,3 +180,7 @@ against the actual target.
 
 See the [server design](intent/server/server-design.md) and
 [requirements](intent/server/server-specs.md) for the implementation contract.
+
+## Verified foundation checks
+
+[Server CI](https://github.com/repetere/gpdoc-components/actions/runs/43643316249) passed Node 22/24 tests, PostgreSQL 16/17 integration (including actual server-process OIDC sign-in, concurrent live edits and persistence across restart), and a non-root container test using TLS to PostgreSQL and the application, explicit restricted-runtime grants, health checks and restart. This evidence applies to the reference composition and synthetic provider, not an operator production environment.
